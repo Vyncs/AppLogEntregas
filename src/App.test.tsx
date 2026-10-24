@@ -146,6 +146,32 @@ describe('Rota Fácil — cadastro e entrega', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Pular para depois' }));
     expect(await screen.findByRole('heading', { name: 'Cliente Trinta' })).toBeTruthy();
+
+    // Problema por engano: Anterior volta nela e desfaz
+    fireEvent.click(screen.getByRole('button', { name: 'Problema' }));
+    expect(await screen.findByRole('heading', { name: 'Cliente Vinte' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '← Anterior' }));
+    expect(await screen.findByRole('heading', { name: 'Cliente Trinta' })).toBeTruthy();
+    expect(screen.getByText('Com problema')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar para pendente' }));
+    expect(await screen.findByRole('button', { name: 'Pular para depois' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Cliente Trinta' })).toBeTruthy();
+
+    // Editar e voltar mantém a parada aberta
+    fireEvent.click(screen.getByRole('button', { name: 'Próxima →' }));
+    expect(await screen.findByRole('heading', { name: 'Cliente Vinte' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Voltar sem salvar' }));
+    expect(await screen.findByRole('heading', { name: 'Cliente Vinte' })).toBeTruthy();
+
+    // Na lista da rota: Maps, Entregue e desfazer sem abrir as entregas
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar para a rota' }));
+    const lista = await screen.findByRole('list', { name: 'Ordem das entregas' });
+    const trinta = within(lista).getByText('Cliente Trinta').closest('li') as HTMLElement;
+    expect(within(trinta).getByRole('link', { name: 'Maps' }).getAttribute('href')).toContain('destination=');
+    fireEvent.click(within(trinta).getByRole('button', { name: 'Entregue' }));
+    fireEvent.click(await within(trinta).findByRole('button', { name: 'Voltar para pendente' }));
+    expect(await within(trinta).findByRole('button', { name: 'Retirar' })).toBeTruthy();
   });
 
   it('exclui uma encomenda e apaga o dia: só as entregues, depois todas, levando a rota junto', async () => {

@@ -15,6 +15,8 @@ export default function App() {
   const route = useRoute(packagesApi);
   const [screen, setScreen] = useState<Screen>('home');
   const [editing, setEditing] = useState<{ id: string; back: Screen } | null>(null);
+  /** Parada aberta nas entregas: sobrevive à ida para Editar e volta */
+  const [deliverAt, setDeliverAt] = useState<string | null>(null);
 
   const progress = useMemo(() => {
     const plan = route.saved.plan;
@@ -24,6 +26,12 @@ export default function App() {
   }, [route.saved.plan, route.excludedSet, packagesApi.packages]);
 
   const edit = (id: string) => setEditing({ id, back: screen });
+
+  /** Entrar nas entregas começa pela próxima pendente. */
+  const deliver = () => {
+    setDeliverAt(null);
+    setScreen('deliver');
+  };
 
   /** Fim do dia: apaga as encomendas (todas ou só as entregues) e a rota calculada; a partida fica. */
   const clearDay = async (onlyDelivered: boolean) => {
@@ -58,12 +66,21 @@ export default function App() {
           packagesApi={packagesApi}
           route={route}
           onBack={() => setScreen('home')}
-          onDeliver={() => setScreen('deliver')}
+          onDeliver={deliver}
           onEdit={edit}
         />
       );
     case 'deliver':
-      return <DeliveryMode packagesApi={packagesApi} route={route} onBack={() => setScreen('route')} onEdit={edit} />;
+      return (
+        <DeliveryMode
+          packagesApi={packagesApi}
+          route={route}
+          at={deliverAt}
+          onAt={setDeliverAt}
+          onBack={() => setScreen('route')}
+          onEdit={edit}
+        />
+      );
     default:
       return (
         <HomeScreen
@@ -72,7 +89,7 @@ export default function App() {
           onRoute={() => setScreen('route')}
           onEdit={edit}
           routeProgress={progress}
-          onContinue={() => setScreen('deliver')}
+          onContinue={deliver}
           onClearDay={clearDay}
         />
       );

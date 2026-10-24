@@ -72,10 +72,14 @@ Abra no celular `http://IP-DO-PC:5173` (mesma rede Wi-Fi).
   - mostra a sequência numerada, o tempo e a distância de cada trecho e os
     totais, sempre com o aviso de que **não considera trânsito em tempo real**;
   - dá para retirar uma parada sem excluir a encomenda;
+  - cada parada da lista tem Entregue, Maps e Editar; a resolvida volta para
+    pendente com um toque;
   - avisa quando há encomendas novas fora da rota.
 - **Entregas (Etapa 6):**
   - uma parada por vez, com "Abrir no Google Maps" (navegação até a parada),
-    Entregue, Problema e Pular para depois;
+    Entregue, Problema, Pular para depois e Editar;
+  - Anterior/Próxima passam pelas paradas, inclusive as resolvidas: dá para
+    desfazer um "Problema" tocado por engano;
   - mostra o progresso e recalcula as restantes a partir da localização atual
     ou da última entrega feita.
 
