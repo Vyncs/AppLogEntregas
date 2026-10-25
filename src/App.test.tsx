@@ -124,10 +124,14 @@ describe('Rota Fácil — cadastro e entrega', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Calcular rota \(3\)/ }));
     const ordem = await screen.findByRole('list', { name: 'Ordem das entregas' });
-    const nomes = within(ordem)
-      .getAllByRole('listitem')
-      .map((li) => li.querySelector('p')?.textContent);
-    expect(nomes).toEqual(['Cliente Dez', 'Cliente Vinte', 'Cliente Trinta']);
+    // O endereço vem primeiro no card; o nome logo abaixo
+    const paradas = within(ordem).getAllByRole('listitem');
+    expect(paradas.map((li) => li.querySelector('p')?.textContent)).toEqual([
+      'Rua das Flores, 10',
+      'Rua das Flores, 20',
+      'Rua das Flores, 30',
+    ]);
+    expect(paradas.map((li) => li.querySelectorAll('p')[1]?.textContent)).toEqual(['Cliente Dez', 'Cliente Vinte', 'Cliente Trinta']);
     expect(screen.getByText(/terminando na última entrega, rua a rua/)).toBeTruthy();
 
     // Entregas: uma parada por vez, com o Google Maps nas coordenadas da parada
@@ -170,7 +174,14 @@ describe('Rota Fácil — cadastro e entrega', () => {
     expect(within(trinta).getByRole('link', { name: 'Maps' }).getAttribute('href')).toContain('destination=');
     fireEvent.click(within(trinta).getByRole('button', { name: 'Entregue' }));
     fireEvent.click(await within(trinta).findByRole('button', { name: 'Voltar para pendente' }));
-    expect(await within(trinta).findByRole('button', { name: 'Retirar' })).toBeTruthy();
+    // Retirar pede confirmação; cancelar mantém na rota, confirmar leva para "Retiradas da rota"
+    fireEvent.click(await within(trinta).findByRole('button', { name: 'Retirar' }));
+    fireEvent.click(within(screen.getByRole('alertdialog', { name: 'Retirar da rota?' })).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    fireEvent.click(within(trinta).getByRole('button', { name: 'Retirar' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Retirar' }));
+    const retiradas = await screen.findByRole('region', { name: 'Retiradas da rota' });
+    expect(within(retiradas).getByText(/Cliente Trinta/)).toBeTruthy();
   });
 
   it('exclui uma encomenda e apaga o dia: só as entregues, depois todas, levando a rota junto', async () => {

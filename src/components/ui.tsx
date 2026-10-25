@@ -110,3 +110,41 @@ export function Spinner({ className = 'size-5' }: { className?: string }) {
     />
   );
 }
+
+interface ConfirmDialogProps {
+  title: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  children?: ReactNode;
+}
+
+/** Confirmação antes de uma ação que tira algo da tela. Fora do card: toque no fundo cancela. */
+export function ConfirmDialog({ title, confirmLabel, onConfirm, onCancel, children }: ConfirmDialogProps) {
+  return (
+    <div
+      className="fixed inset-0 z-1000 flex items-end justify-center bg-slate-900/40 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center"
+      onClick={onCancel}
+      onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={title}
+        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-lg font-bold">{title}</p>
+        {children && <p className="mt-1 text-sm text-slate-600">{children}</p>}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button variant="secondary" onClick={onCancel} autoFocus>
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={onConfirm}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
