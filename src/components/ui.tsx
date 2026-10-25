@@ -2,7 +2,16 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react
 import type { Confidence } from '../services/label/labelParser';
 import { STATUS_LABEL, type PackageStatus } from '../types/package';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'success' | 'warning' | 'danger' | 'destructive';
+type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'success'
+  | 'successSoft'
+  | 'warning'
+  | 'warningSoft'
+  | 'danger'
+  | 'destructive';
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary: 'bg-brand-700 text-white hover:bg-brand-800 active:bg-brand-800',
@@ -10,6 +19,9 @@ const VARIANT: Record<ButtonVariant, string> = {
   ghost: 'bg-transparent text-slate-700 hover:bg-slate-200/60',
   success: 'bg-emerald-600 text-white hover:bg-emerald-700',
   warning: 'bg-amber-500 text-white hover:bg-amber-600',
+  /** Versões claras: ação frequente que não deve competir com o botão principal */
+  successSoft: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100 active:bg-emerald-100',
+  warningSoft: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100 active:bg-amber-100',
   danger: 'bg-white text-red-700 ring-1 ring-red-300 hover:bg-red-50',
   /** Confirmação de algo que não volta (apagar) */
   destructive: 'bg-red-600 text-white hover:bg-red-700',
