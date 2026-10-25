@@ -104,8 +104,12 @@ describe('Rota Fácil — cadastro e entrega', () => {
     expect((screen.getByRole('button', { name: 'Iniciar entregas' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Ver mapa da rota' }) as HTMLButtonElement).disabled).toBe(true);
 
+    expect(screen.getByRole('button', { name: 'Pendentes (1)' })).toBeTruthy();
     fireEvent.click(within(card).getByRole('button', { name: 'Entregue' }));
     await waitFor(() => expect(within(card).getByText('Entregue', { selector: 'span' })).toBeTruthy());
+    // Tudo acompanha na hora: filtros e o progresso do botão das entregas
+    expect(screen.getByRole('button', { name: 'Pendentes (0)' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Entregues (1)' })).toBeTruthy();
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('100');
   });
 
@@ -156,7 +160,9 @@ describe('Rota Fácil — cadastro e entrega', () => {
     expect(screen.getByRole('button', { name: /^Pendentes \(\d+\)$/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar entregas' }));
-    expect(await screen.findByText('Parada 1 de 3')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Rua das Flores, 10' })).toBeTruthy();
+    // Sem "Parada 1 de 3": o progresso já está na barra
+    expect(screen.queryByText(/^Parada \d+ de \d+$/)).toBeNull();
     // Resumo só com paradas, distância e tempo
     const resumo = screen.getByRole('region', { name: 'Resumo da rota' });
     expect(within(resumo).getByText(/^3 paradas · .+ · ~\d+ min$/)).toBeTruthy();
@@ -169,7 +175,8 @@ describe('Rota Fácil — cadastro e entrega', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Entregue' }));
     expect(await screen.findByRole('heading', { name: 'Rua das Flores, 20' })).toBeTruthy();
-    expect(screen.getByText('Parada 2 de 3')).toBeTruthy();
+    // O resumo conta só o que falta: uma entregue, duas paradas restantes
+    expect(within(screen.getByRole('region', { name: 'Resumo da rota' })).getByText(/^2 paradas · /)).toBeTruthy();
 
     // Sem "Pular": as setas avançam e voltam pelas paradas
     fireEvent.click(screen.getByRole('button', { name: 'Próxima parada' }));
@@ -286,9 +293,10 @@ describe('Rota Fácil — cadastro e entrega', () => {
 
     // Tocar no card abre as entregas já naquela parada, na ordem da rota
     fireEvent.click(screen.getByRole('button', { name: /Abrir a parada 2:/ }));
-    expect(await screen.findByText('Parada 2 de 2')).toBeTruthy();
+    // Abriu na segunda (a última): só dá para voltar
+    expect(((await screen.findByRole('button', { name: 'Próxima parada' })) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Parada anterior' }));
-    expect(await screen.findByText('Parada 1 de 2')).toBeTruthy();
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Parada anterior' }) as HTMLButtonElement).disabled).toBe(true));
     fireEvent.click(screen.getByRole('button', { name: 'Voltar para a lista' }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Iniciar entregas' }));
