@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { CaptureScreen } from './components/CaptureScreen';
 import { EditPackageScreen } from './components/EditPackageScreen';
 import { HomeScreen } from './components/HomeScreen';
 import { DeliveryMode } from './components/route/DeliveryMode';
 import { usePackages } from './hooks/usePackages';
 import { useRoute } from './hooks/useRoute';
+import { useRememberScroll, useScrollReset } from './hooks/useScrollReset';
 
 type Screen = 'home' | 'capture' | 'deliver';
 
@@ -15,6 +16,16 @@ export default function App() {
   const [editing, setEditing] = useState<{ id: string; back: Screen } | null>(null);
   /** Parada aberta nas entregas: sobrevive à ida para Editar e volta */
   const [deliverAt, setDeliverAt] = useState<string | null>(null);
+
+  // Entrar numa tela começa no topo; voltar para a lista devolve onde ela estava
+  const view = editing ? `edit:${editing.id}` : screen;
+  const homeScroll = useRef(0);
+  const saveHome = useCallback((y: number) => (homeScroll.current = y), []);
+  useRememberScroll(view === 'home', saveHome);
+  useScrollReset(
+    view,
+    useCallback((key: string) => (key === 'home' ? homeScroll.current : undefined), []),
+  );
 
   const edit = (id: string) => setEditing({ id, back: screen });
 

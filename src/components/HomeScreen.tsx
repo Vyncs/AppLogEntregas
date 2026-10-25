@@ -12,7 +12,6 @@ import {
   sameAddressCounts,
   sameAddressKey,
 } from '../services/routing/navigation';
-import { SOURCE_LABEL } from '../services/routing/types';
 import type { DeliveryPackage, PackageStatus } from '../types/package';
 import { addressLine, placeLine } from './PackageCard';
 import { RouteMapModal } from './route/RouteMapModal';
@@ -68,10 +67,6 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
   const progress = plan ? routeProgress(plan, byId, excludedSet) : null;
   const fresh = plan ? newPendingSince(plan, packages, excludedSet) : [];
   const pendingCount = packages.filter((p) => p.status === 'pending' && !excludedSet.has(p.id)).length;
-  const approximate = stops.filter((s) => {
-    const precision = byId.get(s.packageId)?.geo?.precision;
-    return precision && precision !== 'number';
-  }).length;
 
   const shown = useMemo(() => {
     const query = normalizeText(search);
@@ -154,10 +149,6 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
           <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">
             {route.error}
           </p>
-        )}
-
-        {plan && !busy && (
-          <RouteSummary route={route} stopCount={stops.length} done={progress?.done ?? 0} approximate={approximate} fresh={fresh.length} />
         )}
 
         <input
@@ -322,58 +313,6 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
         />
       )}
     </div>
-  );
-}
-
-interface RouteSummaryProps {
-  route: RouteApi;
-  stopCount: number;
-  done: number;
-  approximate: number;
-  fresh: number;
-}
-
-/** Totais da rota e os avisos: tempos estimados, localização aproximada, encomendas novas. */
-function RouteSummary({ route, stopCount, done, approximate, fresh }: RouteSummaryProps) {
-  const { saved, settings } = route;
-  const plan = saved.plan!;
-  return (
-    <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" aria-label="Resumo da rota">
-      <p className="text-lg font-bold">
-        {stopCount} {stopCount === 1 ? 'parada' : 'paradas'}
-        {plan.totalMeters !== null && ` · ${formatDistance(plan.totalMeters)}`} · ~{formatDuration(plan.totalSeconds)}
-      </p>
-      <p className="text-xs text-slate-500">
-        Partindo de {plan.origin.label}
-        {plan.returnTo ? ', com volta' : ', terminando na última entrega'}
-        {settings.byStreet ? ', rua a rua' : ''}. Tempos: {SOURCE_LABEL[plan.source]} — não considera o trânsito em tempo
-        real.
-      </p>
-      {stopCount > 0 && (
-        <p className="mt-1 text-xs font-medium text-teal-800">
-          {done} de {stopCount} resolvidas
-        </p>
-      )}
-      {saved.fellBack && (
-        <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
-          {saved.fallbackReason && saved.fallbackReason !== 'Serviço de rotas indisponível no momento.'
-            ? `${saved.fallbackReason} Enquanto isso, a ordem saiu da distância em linha reta, menos precisa.`
-            : 'O serviço de rotas não respondeu: a ordem saiu da distância em linha reta, menos precisa. Recalcule quando houver internet.'}
-        </p>
-      )}
-      {approximate > 0 && (
-        <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
-          {approximate === stopCount ? 'Todas as paradas foram localizadas' : `${approximate} de ${stopCount} paradas foram localizadas`} só pela
-          rua (o mapa gratuito não tem o número das casas). A navegação no Google Maps vai pelo endereço completo e acerta o
-          número.
-        </p>
-      )}
-      {fresh > 0 && (
-        <p className="mt-2 rounded-lg bg-sky-50 p-2 text-xs text-sky-900">
-          {fresh} {fresh === 1 ? 'encomenda nova ficou' : 'encomendas novas ficaram'} fora desta rota. Recalcule para incluir.
-        </p>
-      )}
-    </section>
   );
 }
 

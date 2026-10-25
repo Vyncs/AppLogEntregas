@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { PackagesApi } from '../../hooks/usePackages';
 import type { RouteApi } from '../../hooks/useRoute';
-import { googleMapsDirectionsUrl, routeProgress, sameAddressKey } from '../../services/routing/navigation';
+import { useScrollReset } from '../../hooks/useScrollReset';
+import { googleMapsDirectionsUrl, newPendingSince, routeProgress, sameAddressKey } from '../../services/routing/navigation';
 import type { PlannedStop } from '../../services/routing/planner';
 import type { DeliveryPackage, PackageStatus } from '../../types/package';
 import {
@@ -15,6 +16,7 @@ import {
   UndoIcon,
 } from '../icons';
 import { addressLine, placeLine } from '../PackageCard';
+import { RouteSummary } from './RouteSummary';
 import { Button, Spinner, StatusBadge } from '../ui';
 
 /** Entregue / Problema / Voltar: quadrados grandes, só ícone (o nome vai no aria-label) */
@@ -47,6 +49,8 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
   const isPending = (s: PlannedStop) => byId.get(s.packageId)?.status === 'pending';
   const chosen = at ? stops.findIndex((s) => s.packageId === at) : -1;
   const index = chosen >= 0 ? chosen : stops.findIndex(isPending);
+  // Outra parada (seta, ou depois de marcar): começa do topo
+  useScrollReset(stops[index]?.packageId ?? 'fim');
 
   /** A pendente depois desta (ou a primeira que sobrou), sem contar `id`. */
   const nextPendingAfter = (id: string) => {
@@ -100,6 +104,17 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
   }
 
   const percent = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  const approximate = stops.filter((s) => {
+    const precision = byId.get(s.packageId)?.geo?.precision;
+    return precision && precision !== 'number';
+  }).length;
+  const unlocated = new Set(route.saved.unlocated);
+  const fresh = newPendingSince(plan, packages, route.excludedSet).filter((p) => !unlocated.has(p.id)).length;
+  const summary = (
+    <div className="mt-3">
+      <RouteSummary route={route} stopCount={stops.length} approximate={approximate} fresh={fresh} />
+    </div>
+  );
   const bar = (
     <div className="mt-3">
       <div className="flex justify-between text-xs text-slate-600">
@@ -156,6 +171,7 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
     <div className="mx-auto min-h-dvh max-w-md px-4 pb-10 pt-3">
       {header}
       {bar}
+      {summary}
 
       <article className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200" aria-label="Parada">
         <div className="flex items-center justify-between gap-2">
