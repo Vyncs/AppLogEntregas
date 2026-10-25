@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { PackagesApi } from '../hooks/usePackages';
 import { useCaptureQueue, type QueueItem } from '../hooks/useCaptureQueue';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useScrollReset } from '../hooks/useScrollReset';
 import { ocrProvider, readLabelFile } from '../lib/services';
 import type { ReadingStage } from '../services/label/labelPipeline';
 import { recordReading } from '../services/metrics';
@@ -104,6 +105,8 @@ export function CaptureScreen({ packagesApi, onClose }: CaptureScreenProps) {
   };
 
   const current = queue.current;
+  // Próxima foto da fila, formulário em branco depois de salvar, edição: começa do topo
+  useScrollReset(editing ? `editing:${editing.kind}` : current ? `item:${current.id}` : typedDuplicate ? 'duplicate' : `blank:${blankKey}`);
 
   const renderBody = () => {
     if (editing) {

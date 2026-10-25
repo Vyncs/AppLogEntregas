@@ -10,6 +10,8 @@ import App from './App';
 const json = (body: unknown) => new Response(JSON.stringify(body));
 
 beforeEach(() => {
+  // O jsdom não rola a página: espião no lugar
+  vi.stubGlobal('scrollTo', vi.fn());
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
@@ -145,11 +147,13 @@ describe('Rota Fácil — cadastro e entrega', () => {
       'Rua das Flores, 30',
     ]);
     expect(paradas.map((li) => li.querySelectorAll('p')[1]?.textContent)).toEqual(['Cliente Dez', 'Cliente Vinte', 'Cliente Trinta']);
-    expect(screen.getByText(/terminando na última entrega, rua a rua/)).toBeTruthy();
+    // O resumo da rota fica nas entregas, não na lista
+    expect(screen.queryByRole('region', { name: 'Resumo da rota' })).toBeNull();
 
     // Entregas: uma parada por vez, com o Google Maps nas coordenadas da parada
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar entregas' }));
     expect(await screen.findByText('Parada 1 de 3')).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: 'Resumo da rota' })).getByText(/terminando na última entrega, rua a rua/)).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Rua das Flores, 10' })).toBeTruthy();
     // O Maps recebe o endereço (ele acha o número da casa), não o ponto aproximado
     expect(screen.getByRole('link', { name: 'Abrir no Google Maps' }).getAttribute('href')).toContain(
@@ -248,6 +252,17 @@ describe('Rota Fácil — cadastro e entrega', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
       fireEvent.click(await screen.findByRole('button', { name: /Rua das Flores 1, Barueri/ }));
     }
+    // Partida numa linha: lápis e engrenagem abrem modais
+    fireEvent.click(screen.getByRole('button', { name: 'Opções da rota' }));
+    const opcoes = screen.getByRole('dialog', { name: 'Opções da rota' });
+    expect((within(opcoes).getByRole('checkbox', { name: /Organizar por ruas/ }) as HTMLInputElement).checked).toBe(true);
+    expect((within(opcoes).getByRole('checkbox', { name: /Voltar ao ponto de partida/ }) as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(within(opcoes).getByRole('button', { name: 'Pronto' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Alterar a partida' }));
+    expect(within(screen.getByRole('dialog', { name: 'Ponto de partida' })).getByLabelText('Endereço de partida')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+
     fireEvent.click(await screen.findByRole('button', { name: 'Calcular rota' }));
     await screen.findByRole('list', { name: 'Ordem das entregas' });
     expect(screen.getAllByText('📦 2 encomendas neste endereço')).toHaveLength(2);
@@ -265,5 +280,23 @@ describe('Rota Fácil — cadastro e entrega', () => {
     const outra = within(aviso).getByRole('button', { name: /Marcar Cliente (Ana|Bia) como entregue/ });
     fireEvent.click(outra);
     expect(await within(aviso).findByText('Entregue')).toBeTruthy();
+  });
+
+  it('entrar numa tela começa do topo; voltar para a lista devolve onde ela estava', async () => {
+    render(<App />);
+    await screen.findByRole('button', { name: /Fotografar etiqueta/ });
+    const scrollTo = window.scrollTo as unknown as ReturnType<typeof vi.fn>;
+
+    // Rolou a lista até 640 px
+    Object.defineProperty(window, 'scrollY', { value: 640, configurable: true });
+    fireEvent.scroll(window);
+
+    fireEvent.click(screen.getByRole('button', { name: /Fotografar etiqueta/ }));
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Voltar para as encomendas' }));
+    await screen.findByRole('button', { name: /Fotografar etiqueta/ });
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 640);
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
   });
 });
