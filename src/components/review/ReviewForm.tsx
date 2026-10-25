@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useGeocode } from '../../hooks/useGeocode';
 import { cepService } from '../../lib/services';
 import { toPackageGeo } from '../../services/geo/candidates';
@@ -43,6 +43,8 @@ interface ReviewFormProps {
   onSubmit: (draft: PackageDraft) => Promise<void>;
   onDiscard: () => void;
   onRetryRotated?: () => void;
+  /** Conteúdo depois dos campos (ex.: os botões de foto, no cadastro sem foto) */
+  children?: ReactNode;
 }
 
 export function ReviewForm({
@@ -55,6 +57,7 @@ export function ReviewForm({
   onSubmit,
   onDiscard,
   onRetryRotated,
+  children,
 }: ReviewFormProps) {
   const [values, setValues] = useState<FormValues>(initial.values);
   const [confidence, setConfidence] = useState(initial.confidence);
@@ -235,28 +238,6 @@ export function ReviewForm({
 
       <div className="space-y-3">
         <Field
-          id="campo-trackingCode"
-          label="Código de rastreio (opcional)"
-          value={values.trackingCode}
-          onChange={(v) => set('trackingCode', v)}
-          confidence={highlight('trackingCode')}
-          error={errors.trackingCode}
-          autoCapitalize="characters"
-          className="font-mono"
-        />
-        {initial.trackingNote && <p className="-mt-2 text-xs text-slate-500">{initial.trackingNote}</p>}
-
-        <Field
-          id="campo-recipientName"
-          label="Destinatário"
-          value={values.recipientName}
-          onChange={(v) => set('recipientName', v)}
-          confidence={highlight('recipientName')}
-          error={errors.recipientName}
-          autoComplete="off"
-        />
-
-        <Field
           id="campo-cep"
           label="CEP"
           value={values.cep}
@@ -345,7 +326,31 @@ export function ReviewForm({
           cityHint={[values.city, values.state].filter((v) => v.trim()).join(', ')}
         />
 
+        {/* Endereço primeiro (é ele que localiza e ordena a rota); o destinatário por último, antes de salvar */}
+        <Field
+          id="campo-trackingCode"
+          label="Código de rastreio (opcional)"
+          value={values.trackingCode}
+          onChange={(v) => set('trackingCode', v)}
+          confidence={highlight('trackingCode')}
+          error={errors.trackingCode}
+          autoCapitalize="characters"
+          className="font-mono"
+        />
+        {initial.trackingNote && <p className="-mt-2 text-xs text-slate-500">{initial.trackingNote}</p>}
+
         <Field id="campo-notes" label="Observações" value={values.notes} onChange={(v) => set('notes', v)} />
+
+        <Field
+          id="campo-recipientName"
+          label="Destinatário"
+          value={values.recipientName}
+          onChange={(v) => set('recipientName', v)}
+          confidence={highlight('recipientName')}
+          error={errors.recipientName}
+          autoComplete="off"
+        />
+
 
         {initial.ocrText !== null && (
           <details className="rounded-xl bg-white p-3 text-xs text-slate-600 ring-1 ring-slate-200">
@@ -364,6 +369,8 @@ export function ReviewForm({
           </ul>
         )}
       </div>
+
+      {children}
 
       {submitError && (
         <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">

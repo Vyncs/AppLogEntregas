@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { PackagesApi } from '../hooks/usePackages';
 import { useCaptureQueue, type QueueItem } from '../hooks/useCaptureQueue';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -46,6 +46,8 @@ export function CaptureScreen({ packagesApi, onClose }: CaptureScreenProps) {
   const [typedDuplicate, setTypedDuplicate] = useState<DeliveryPackage | null>(null);
   const [ocrProgress, setOcrProgress] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
+  /** Troca a cada salvamento manual: o formulário sem foto volta em branco */
+  const [blankKey, setBlankKey] = useState(0);
 
   useEffect(() => {
     ocrProvider.onProgress(setOcrProgress);
@@ -90,6 +92,7 @@ export function CaptureScreen({ packagesApi, onClose }: CaptureScreenProps) {
     if (draft.ocrProvider !== 'manual') recordReading(draft.ocrProvider, draft.correctedFields);
     bump('saved');
     setEditing(null);
+    if (!item) setBlankKey((k) => k + 1);
     finishItem(item, '✓ Encomenda salva');
   };
 
@@ -139,21 +142,29 @@ export function CaptureScreen({ packagesApi, onClose }: CaptureScreenProps) {
     }
 
     if (!current) {
+      // Sem foto na fila: os campos já abertos para digitar; foto e galeria logo abaixo
       return (
-        <div className="mt-6 space-y-3">
-          <p className="text-center text-slate-600">
-            Fotografe a etiqueta de frente, com o bloco do destinatário legível e sem reflexo.
-          </p>
-          <Button size="lg" block onClick={openCamera}>
-            <CameraIcon /> Tirar foto
-          </Button>
-          <Button variant="secondary" size="lg" block onClick={() => galleryInput.current?.click()}>
-            Escolher da galeria (várias)
-          </Button>
-          <Button variant="ghost" block onClick={() => setEditing({ kind: 'manual', initial: initialBlank() })}>
-            Digitar sem foto
-          </Button>
-        </div>
+        <ReviewForm
+          key={`blank-${blankKey}`}
+          initial={initialBlank()}
+          packages={packagesApi.packages}
+          submitLabel="Salvar encomenda"
+          discardLabel="Limpar"
+          onSubmit={(draft) => handleCreate(draft)}
+          onDiscard={() => setBlankKey((k) => k + 1)}
+        >
+          <div className="mt-5">
+            <p className="text-center text-xs font-medium text-slate-500">ou leia a etiqueta</p>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <PhotoButton label="Câmera" aria-label="Tirar foto" onClick={openCamera}>
+                <CameraIcon className="size-8" />
+              </PhotoButton>
+              <PhotoButton label="Galeria" aria-label="Escolher da galeria" onClick={() => galleryInput.current?.click()}>
+                <FolderIcon />
+              </PhotoButton>
+            </div>
+          </div>
+        </ReviewForm>
       );
     }
 
@@ -319,6 +330,35 @@ export function CaptureScreen({ packagesApi, onClose }: CaptureScreenProps) {
         }}
       />
     </div>
+  );
+}
+
+interface PhotoButtonProps {
+  label: string;
+  'aria-label': string;
+  onClick: () => void;
+  children: ReactNode;
+}
+
+function PhotoButton({ label, onClick, children, ...rest }: PhotoButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={rest['aria-label']}
+      className="flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl bg-white text-sm font-semibold text-brand-700 ring-1 ring-slate-300 transition hover:bg-brand-50 active:bg-brand-50"
+    >
+      {children}
+      {label}
+    </button>
+  );
+}
+
+function FolderIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+      <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" />
+    </svg>
   );
 }
 
