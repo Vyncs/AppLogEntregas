@@ -43,7 +43,7 @@ interface ReviewFormProps {
   onSubmit: (draft: PackageDraft) => Promise<void>;
   onDiscard: () => void;
   onRetryRotated?: () => void;
-  /** Conteúdo depois dos campos (ex.: os botões de foto, no cadastro sem foto) */
+  /** Conteúdo antes dos campos (ex.: os botões de foto, no cadastro sem foto) */
   children?: ReactNode;
 }
 
@@ -172,6 +172,8 @@ export function ReviewForm({
 
   return (
     <form onSubmit={submit} noValidate className="pb-28">
+      {children}
+
       {previewUrl && (
         <div className="mb-3">
           <button
@@ -343,7 +345,7 @@ export function ReviewForm({
 
         <Field
           id="campo-recipientName"
-          label="Destinatário"
+          label="Destinatário (opcional)"
           value={values.recipientName}
           onChange={(v) => set('recipientName', v)}
           confidence={highlight('recipientName')}
@@ -369,8 +371,6 @@ export function ReviewForm({
           </ul>
         )}
       </div>
-
-      {children}
 
       {submitError && (
         <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">

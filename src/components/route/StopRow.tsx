@@ -14,6 +14,8 @@ interface StopRowProps {
   onStatus: (status: PackageStatus) => Promise<void>;
   onEdit: () => void;
   onExclude: () => void;
+  /** Quantas encomendas há neste endereço (contando esta), quando mais de uma */
+  sameAddress?: number;
 }
 
 /** Botão só com ícone, do tamanho de um dedo; o nome vai no `aria-label`. */
@@ -26,7 +28,7 @@ const CORNER =
  * Uma parada da lista, com as ações sem precisar abrir as entregas. O endereço
  * vem primeiro: na rua, é ele que o entregador procura; o nome confere na porta.
  */
-export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude }: StopRowProps) {
+export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude, sameAddress }: StopRowProps) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -67,6 +69,11 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude }: S
               .filter(Boolean)
               .join(' · ')}
           </p>
+          {sameAddress && sameAddress > 1 && (
+            <p className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+              📦 {sameAddress} encomendas neste endereço
+            </p>
+          )}
           {!resolved && !p.geo && (
             <p className="text-xs font-medium text-amber-700">
               {p.geoProblem === 'not-found' ? 'Endereço não localizado no mapa — fica fora da rota' : 'Ainda sem localização'}

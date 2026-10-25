@@ -57,10 +57,10 @@ const register = async (nome: string, numero: string) => {
   type('CEP', '06454000');
   await waitFor(() => expect((screen.getByLabelText('Logradouro') as HTMLInputElement).value).toBe('Rua das Flores'));
   type('Número', numero);
-  type('Destinatário', nome);
+  type('Destinatário (opcional)', nome);
   fireEvent.click(screen.getByRole('button', { name: 'Salvar encomenda' }));
   // Salvou quando o formulário volta em branco
-  await waitFor(() => expect((screen.getByLabelText('Destinatário') as HTMLInputElement).value).toBe(''));
+  await waitFor(() => expect((screen.getByLabelText('Destinatário (opcional)') as HTMLInputElement).value).toBe(''));
   expect(screen.getByText('✓ Encomenda salva')).toBeTruthy();
 };
 
@@ -70,15 +70,17 @@ describe('Rota Fácil — cadastro e entrega', () => {
     expect(await screen.findByText('Nenhuma encomenda ainda.')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Fotografar etiqueta/ }));
-    // Sem precisar escolher "digitar": os campos vêm primeiro, com câmera e galeria logo abaixo
+    // Câmera e galeria em cima; os campos para digitar já abertos logo abaixo
     expect(screen.getByRole('button', { name: 'Tirar foto' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Escolher da galeria' })).toBeTruthy();
     expect(screen.queryByText(/Fotografe a etiqueta de frente/)).toBeNull();
     const ids = [...document.querySelectorAll('form input[id^="campo-"]')].map((el) => el.id);
     expect(ids.slice(0, 3)).toEqual(['campo-cep', 'campo-street', 'campo-number']);
     expect(ids.at(-1)).toBe('campo-recipientName');
+    const camera = screen.getByRole('button', { name: 'Tirar foto' });
+    expect(camera.compareDocumentPosition(screen.getByLabelText('CEP')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    type('Destinatário', 'Maria Exemplo');
+    type('Destinatário (opcional)', 'Maria Exemplo');
     type('CEP', '06454000');
     // O CEP completo dispara a consulta e preenche rua, bairro, cidade e UF
     await waitFor(() => expect((screen.getByLabelText('Logradouro') as HTMLInputElement).value).toBe('Rua das Flores'));
@@ -109,8 +111,9 @@ describe('Rota Fácil — cadastro e entrega', () => {
     render(<App />);
     fireEvent.click(await screen.findByRole('button', { name: /Fotografar etiqueta/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Salvar encomenda' }));
-    expect(await screen.findByText('Informe o destinatário.')).toBeTruthy();
-    expect(screen.getByText('Informe o número (ou S/N).')).toBeTruthy();
+    expect(await screen.findByText('Informe o número (ou S/N).')).toBeTruthy();
+    // O destinatário é opcional: nunca bloqueia o cadastro
+    expect(screen.queryByText('Informe o destinatário.')).toBeNull();
   });
 
   it('monta a rota a partir de casa, na ordem certa, e conduz as entregas parada a parada', async () => {
@@ -227,5 +230,31 @@ describe('Rota Fácil — cadastro e entrega', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apagar o dia…' }));
     fireEvent.click(screen.getByRole('button', { name: /Apagar todas/ }));
     expect(await screen.findByText('Nenhuma encomenda ainda.')).toBeTruthy();
+  });
+
+  it('avisa quando há mais de uma encomenda no mesmo endereço e entrega as duas da mesma parada', async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: /Fotografar etiqueta/ }));
+    await register('Cliente Ana', '70');
+    await register('Cliente Bia', '70');
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar para as encomendas' }));
+
+    // A partida fica salva entre os testes (mesmo banco): só define se ainda não houver
+    await screen.findByRole('region', { name: 'Ponto de partida' });
+    if (screen.queryByLabelText('Endereço de partida')) {
+      type('Endereço de partida', 'Rua das Flores 1, Barueri');
+      fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
+      fireEvent.click(await screen.findByRole('button', { name: /Rua das Flores 1, Barueri/ }));
+    }
+    fireEvent.click(await screen.findByRole('button', { name: 'Calcular rota' }));
+    await screen.findByRole('list', { name: 'Ordem das entregas' });
+    expect(screen.getAllByText('📦 2 encomendas neste endereço')).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar entregas' }));
+    const aviso = await screen.findByRole('region', { name: 'Mesmo endereço' });
+    expect(within(aviso).getByText(/Mais 1 encomenda neste endereço/)).toBeTruthy();
+    const outra = within(aviso).getByRole('button', { name: /Marcar Cliente (Ana|Bia) como entregue/ });
+    fireEvent.click(outra);
+    expect(await within(aviso).findByText('Entregue')).toBeTruthy();
   });
 });

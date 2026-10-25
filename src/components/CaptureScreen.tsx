@@ -142,7 +142,7 @@ export function CaptureScreen({ packagesApi, onClose }: CaptureScreenProps) {
     }
 
     if (!current) {
-      // Sem foto na fila: os campos já abertos para digitar; foto e galeria logo abaixo
+      // Sem foto na fila: câmera e galeria em cima; os campos para digitar logo abaixo
       return (
         <ReviewForm
           key={`blank-${blankKey}`}
@@ -153,9 +153,8 @@ export function CaptureScreen({ packagesApi, onClose }: CaptureScreenProps) {
           onSubmit={(draft) => handleCreate(draft)}
           onDiscard={() => setBlankKey((k) => k + 1)}
         >
-          <div className="mt-5">
-            <p className="text-center text-xs font-medium text-slate-500">ou leia a etiqueta</p>
-            <div className="mt-2 grid grid-cols-2 gap-3">
+          <div className="mb-4">
+            <div className="grid grid-cols-2 gap-3">
               <PhotoButton label="Câmera" aria-label="Tirar foto" onClick={openCamera}>
                 <CameraIcon className="size-8" />
               </PhotoButton>
@@ -163,6 +162,7 @@ export function CaptureScreen({ packagesApi, onClose }: CaptureScreenProps) {
                 <FolderIcon />
               </PhotoButton>
             </div>
+            <p className="mt-4 text-center text-xs font-medium text-slate-500">ou digite os dados</p>
           </div>
         </ReviewForm>
       );

@@ -4,7 +4,14 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import type { RouteApi } from '../hooks/useRoute';
 import { normalizeText } from '../services/label/text';
 import { computeStats, type DayStats } from '../services/packages/packageService';
-import { formatDistance, formatDuration, newPendingSince, routeProgress } from '../services/routing/navigation';
+import {
+  formatDistance,
+  formatDuration,
+  newPendingSince,
+  routeProgress,
+  sameAddressCounts,
+  sameAddressKey,
+} from '../services/routing/navigation';
 import { SOURCE_LABEL } from '../services/routing/types';
 import type { DeliveryPackage, PackageStatus } from '../types/package';
 import { addressLine, placeLine } from './PackageCard';
@@ -77,6 +84,8 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
     .filter((row) => shown(row.pkg));
   const others = packages.filter((p) => !inRoute.has(p.id) && !excludedSet.has(p.id) && shown(p));
   const excluded = packages.filter((p) => excludedSet.has(p.id));
+  const atAddress = useMemo(() => sameAddressCounts(packages.filter((p) => !excludedSet.has(p.id))), [packages, excludedSet]);
+  const countAt = (pkg: DeliveryPackage) => atAddress.get(sameAddressKey(pkg.address) ?? '');
 
   // Só a primeira letra maiúscula: "Sexta-feira, 23 de outubro"
   const date = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
@@ -203,6 +212,7 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
                     onStatus={(status) => setStatus(pkg.id, status)}
                     onEdit={() => onEdit(pkg.id)}
                     onExclude={() => route.exclude(pkg.id)}
+                    sameAddress={countAt(pkg)}
                   />
                 ))}
                 {plan?.backLeg && filter === 'all' && !search && (
@@ -224,6 +234,7 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
                       onStatus={(status) => setStatus(pkg.id, status)}
                       onEdit={() => onEdit(pkg.id)}
                       onExclude={() => route.exclude(pkg.id)}
+                      sameAddress={countAt(pkg)}
                     />
                   ))}
                 </ul>
