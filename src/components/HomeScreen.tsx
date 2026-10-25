@@ -17,7 +17,7 @@ import { addressLine, placeLine } from './PackageCard';
 import { RouteMapModal } from './route/RouteMapModal';
 import { StartPointSection } from './route/StartPoint';
 import { StopRow } from './route/StopRow';
-import { MapIcon, PlusIcon, RefreshIcon } from './icons';
+import { MapIcon, PackageIcon, PlusIcon, RefreshIcon } from './icons';
 import { Button, Spinner } from './ui';
 
 type Filter = 'all' | PackageStatus;
@@ -83,10 +83,6 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
   const atAddress = useMemo(() => sameAddressCounts(packages.filter((p) => !excludedSet.has(p.id))), [packages, excludedSet]);
   const countAt = (pkg: DeliveryPackage) => atAddress.get(sameAddressKey(pkg.address) ?? '');
 
-  // Só a primeira letra maiúscula: "Sexta-feira, 23 de outubro"
-  const date = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
-  const today = date.charAt(0).toUpperCase() + date.slice(1);
-
   const canCompute = !busy && !!settings.start && pendingCount > 0;
   // Novas desde o cálculo; as que já ficaram sem localização não contam (recalcular não resolve)
   const unlocatedSet = new Set(saved.unlocated);
@@ -94,10 +90,7 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col pb-44">
-      <header className="bg-brand-700 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white">
-        <h1 className="text-2xl font-bold tracking-tight">Rota Fácil</h1>
-        <p className="text-sm text-brand-100">{today}</p>
-      </header>
+      <h1 className="sr-only">Rota Fácil</h1>
 
       {!online && (
         <p className="bg-amber-100 px-4 py-2 text-sm text-amber-900" role="status">
@@ -105,7 +98,7 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
         </p>
       )}
 
-      <main className="flex-1 space-y-3 px-4 pt-4">
+      <main className="flex-1 space-y-3 px-4 pt-[max(1rem,env(safe-area-inset-top))]">
         {packages.length > 0 && <StartPointSection route={route} />}
 
         {busy && (
@@ -128,29 +121,25 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
           className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base outline-none focus:border-brand-600"
         />
 
-        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar por situação">
+        {/* Quatro colunas iguais: cabem na tela sem rolar para o lado */}
+        <div className="grid grid-cols-4 gap-2" role="group" aria-label="Filtrar por situação">
           {FILTERS.map(([value, label]) => {
             const count = value === 'all' ? stats.total : stats[value];
+            const active = filter === value;
             return (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={filter === value}
-              onClick={() => setFilter(value)}
-              aria-label={`${label} (${count})`}
-              className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full pl-4 pr-2 text-sm font-medium ring-1 transition ${
-                filter === value ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white text-slate-700 ring-slate-300'
-              }`}
-            >
-              {label}
-              <span
-                className={`min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-bold ${
-                  filter === value ? 'bg-white/20 text-white' : FILTER_COUNT_TONE[value]
+              <button
+                key={value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setFilter(value)}
+                aria-label={`${label} (${count})`}
+                className={`flex min-h-14 min-w-0 flex-col items-center justify-center rounded-xl px-1 ring-1 transition ${
+                  active ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white text-slate-600 ring-slate-300'
                 }`}
               >
-                {count}
-              </span>
-            </button>
+                <span className={`text-lg font-bold leading-tight ${active ? 'text-white' : FILTER_COUNT_TONE[value]}`}>{count}</span>
+                <span className="w-full truncate text-center text-[11px] font-medium">{label}</span>
+              </button>
             );
           })}
         </div>
@@ -301,10 +290,10 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
 }
 
 const FILTER_COUNT_TONE: Record<Filter, string> = {
-  all: 'bg-slate-100 text-slate-700',
-  pending: 'bg-sky-100 text-sky-800',
-  delivered: 'bg-emerald-100 text-emerald-800',
-  problem: 'bg-amber-100 text-amber-900',
+  all: 'text-slate-800',
+  pending: 'text-sky-700',
+  delivered: 'text-emerald-700',
+  problem: 'text-amber-700',
 };
 
 interface DeliverButtonProps {
@@ -324,6 +313,8 @@ interface DeliverButtonProps {
  */
 function DeliverButton({ resolved, total, pending, disabled, onClick }: DeliverButtonProps) {
   const label = resolved === 0 ? 'Iniciar entregas' : pending > 0 ? 'Continuar entregas' : 'Entregas concluídas';
+  // Na tela, "entregas" vira o ícone do pacote: "Iniciar 📦", "Continuar 📦"
+  const verb = resolved === 0 ? 'Iniciar' : pending > 0 ? 'Continuar' : 'Concluídas';
   const percent = total ? Math.round((resolved / total) * 100) : 0;
   return (
     <button
@@ -331,7 +322,7 @@ function DeliverButton({ resolved, total, pending, disabled, onClick }: DeliverB
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="relative mt-2 flex min-h-14 w-full items-center justify-between overflow-hidden rounded-xl bg-brand-800 px-5 text-lg font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+      className="relative mt-2 flex min-h-14 w-full items-center justify-center overflow-hidden rounded-xl bg-brand-800 px-5 text-lg font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
     >
       <span
         role="progressbar"
@@ -342,8 +333,10 @@ function DeliverButton({ resolved, total, pending, disabled, onClick }: DeliverB
         className="absolute inset-y-0 left-0 bg-brand-600 transition-all"
         style={{ width: `${percent}%` }}
       />
-      <span className="relative">{label}</span>
-      <span className="relative text-base font-bold tabular-nums">
+      <span className="relative inline-flex items-center gap-2">
+        {verb} <PackageIcon />
+      </span>
+      <span className="absolute right-5 text-base font-bold tabular-nums">
         {resolved}/{total}
       </span>
     </button>
