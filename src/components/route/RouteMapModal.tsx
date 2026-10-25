@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { routeLine } from '../../lib/services';
 import { googleMapsDirectionsUrl } from '../../services/routing/navigation';
 import type { PlannedStop, RoutePlan } from '../../services/routing/planner';
 import type { DeliveryPackage, LatLng, PackageStatus } from '../../types/package';
@@ -72,6 +73,23 @@ export function RouteMapModal({ plan, stops, byId, onStatus, onOpen, onClose }: 
   );
 
   const path = useMemo(() => [plan.origin.location, ...spots.map((s) => s.location)], [plan.origin, spots]);
+  // Marcar uma entrega recria `spots` com os mesmos pontos: só busca de novo se a sequência mudar
+  const pathKey = path.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join(';');
+  const [streets, setStreets] = useState<{ key: string; line: LatLng[] } | null>(null);
+  const [streetsFailed, setStreetsFailed] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    setStreetsFailed(false);
+    routeLine(path, controller.signal)
+      .then((line) => setStreets({ key: pathKey, line }))
+      .catch((error: unknown) => {
+        if ((error as Error)?.name !== 'AbortError') setStreetsFailed(true);
+      });
+    return () => controller.abort();
+    // `path` acompanha `pathKey`
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathKey]);
+  const streetLine = streets?.key === pathKey ? streets.line : null;
   const spot = selected !== null ? spots[selected] : null;
   const missing = stops.length - spots.reduce((n, s) => n + s.items.length, 0);
 
@@ -83,6 +101,11 @@ export function RouteMapModal({ plan, stops, byId, onStatus, onOpen, onClose }: 
           Fechar
         </Button>
       </header>
+      {streetsFailed && (
+        <p className="bg-slate-50 px-4 py-1.5 text-xs text-slate-600">
+          Sem o desenho pelas ruas agora: a linha tracejada liga as paradas em linha reta.
+        </p>
+      )}
       {missing > 0 && (
         <p className="bg-amber-50 px-4 py-1.5 text-xs text-amber-900">
           {missing} {missing === 1 ? 'parada sem localização não aparece' : 'paradas sem localização não aparecem'} no mapa.
@@ -93,7 +116,8 @@ export function RouteMapModal({ plan, stops, byId, onStatus, onOpen, onClose }: 
         <Suspense fallback={<p className="p-4 text-sm text-slate-500">Carregando mapa…</p>}>
           <MapView
             markers={markers}
-            path={path}
+            path={streetLine ?? path}
+            pathKind={streetLine ? 'streets' : 'straight'}
             height="100%"
             keepView
             onSelect={(index) => setSelected(index === 0 ? null : index - 1)}

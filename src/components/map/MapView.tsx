@@ -25,6 +25,8 @@ interface MapViewProps {
   height?: number | string;
   /** Linha do trajeto, na ordem */
   path?: LatLng[];
+  /** Linha reta entre as paradas (tracejada) ou o desenho pelas ruas (cheia) */
+  pathKind?: 'straight' | 'streets';
   /** Toque num marcador (índice em `markers`) */
   onSelect?: (index: number) => void;
   /** Enquadra só na primeira vez: atualizar os marcadores não tira o zoom do lugar */
@@ -36,7 +38,7 @@ interface MapViewProps {
  * na tela inicial. Os blocos do mapa vêm do servidor do OpenStreetMap, com a
  * atribuição exigida.
  */
-export default function MapView({ markers, height = 220, path, onSelect, keepView }: MapViewProps) {
+export default function MapView({ markers, height = 220, path, pathKind = 'straight', onSelect, keepView }: MapViewProps) {
   const element = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -69,7 +71,9 @@ export default function MapView({ markers, height = 220, path, onSelect, keepVie
     if (path && path.length > 1) {
       L.polyline(
         path.map((p) => [p.lat, p.lng] as [number, number]),
-        { color: '#0f766e', weight: 3, opacity: 0.5, dashArray: '6 6' },
+        pathKind === 'streets'
+          ? { color: '#0f766e', weight: 4, opacity: 0.75 }
+          : { color: '#0f766e', weight: 3, opacity: 0.5, dashArray: '6 6' },
       ).addTo(group);
     }
     markers.forEach((marker, index) => {
@@ -95,7 +99,7 @@ export default function MapView({ markers, height = 220, path, onSelect, keepVie
       if (markers.length === 1) m.setView([markers[0].location.lat, markers[0].location.lng], 17);
       else m.fitBounds(L.latLngBounds(markers.map((p) => [p.location.lat, p.location.lng])), { padding: [32, 32] });
     }
-  }, [markers, path, keepView]);
+  }, [markers, path, pathKind, keepView]);
 
   return <div ref={element} style={{ height }} className="w-full overflow-hidden rounded-xl ring-1 ring-slate-200" />;
 }
