@@ -160,21 +160,23 @@ describe('Rota Fácil — cadastro e entrega', () => {
     expect(await screen.findByRole('heading', { name: 'Rua das Flores, 20' })).toBeTruthy();
     expect(screen.getByText('Parada 2 de 3')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pular para depois' }));
+    // Sem "Pular": as setas avançam e voltam pelas paradas
+    fireEvent.click(screen.getByRole('button', { name: 'Próxima parada' }));
     expect(await screen.findByRole('heading', { name: 'Rua das Flores, 30' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Pular para depois' })).toBeNull();
 
-    // Problema por engano: Anterior volta nela e desfaz
+    // Problema por engano: segue para a pendente que sobrou; a seta volta nela e desfaz
     fireEvent.click(screen.getByRole('button', { name: 'Problema' }));
     expect(await screen.findByRole('heading', { name: 'Rua das Flores, 20' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Parada anterior' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Próxima parada' }));
     expect(await screen.findByRole('heading', { name: 'Rua das Flores, 30' })).toBeTruthy();
     expect(screen.getByText('Com problema')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Voltar para pendente' }));
-    expect(await screen.findByRole('button', { name: 'Pular para depois' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Problema' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Rua das Flores, 30' })).toBeTruthy();
 
     // Editar e voltar mantém a parada aberta
-    fireEvent.click(screen.getByRole('button', { name: 'Próxima parada' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Parada anterior' }));
     expect(await screen.findByRole('heading', { name: 'Rua das Flores, 20' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Voltar sem salvar' }));

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DeliveryPackage } from '../../types/package';
-import { addressForMaps, googleMapsDirectionsUrl, moveStopToEnd, newPendingSince, routeProgress } from './navigation';
+import { addressForMaps, googleMapsDirectionsUrl, newPendingSince, routeProgress } from './navigation';
 import { planRoute, type CachedMatrix, type NamedPoint, type RoutePoint } from './planner';
 import { StraightLineMatrixProvider } from './straightLineProvider';
 import { RoutingUnavailableError, type MatrixProvider } from './types';
@@ -93,15 +93,13 @@ describe('planRoute', () => {
 describe('navegação', () => {
   const pkg = (id: string, status: DeliveryPackage['status']) => ({ id, status }) as DeliveryPackage;
 
-  it('próxima parada, progresso, pular para depois e encomendas novas', async () => {
+  it('próxima parada, progresso, retiradas e encomendas novas', async () => {
     const { plan } = await planRoute({ origin: home, stops, returnTo: null, provider: fakeProvider(), cache: null });
     const byId = new Map([pkg('a', 'delivered'), pkg('b', 'pending'), pkg('c', 'pending'), pkg('d', 'problem')].map((p) => [p.id, p]));
     const progress = routeProgress(plan, byId, new Set());
     expect(progress).toMatchObject({ total: 4, done: 2, nextNumber: 2 });
     expect(progress.next?.packageId).toBe('b');
 
-    const skipped = moveStopToEnd(plan, 'b');
-    expect(routeProgress(skipped, byId, new Set()).next?.packageId).toBe('c');
     expect(routeProgress(plan, byId, new Set(['b'])).total).toBe(3);
 
     const fresh = [...byId.values(), pkg('e', 'pending')];

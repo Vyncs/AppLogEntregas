@@ -119,12 +119,3 @@ export function ChevronRightIcon({ className = 'size-6' }: IconProps) {
     </svg>
   );
 }
-
-/** "Pular para depois": seta para a frente até uma barra */
-export function SkipIcon({ className = 'size-5' }: IconProps) {
-  return (
-    <svg {...svg} className={className}>
-      <path d="M5 6l8 6-8 6V6zM18 6v12" />
-    </svg>
-  );
-}

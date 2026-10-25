@@ -12,7 +12,6 @@ import {
   PencilIcon,
   PinIcon,
   RefreshIcon,
-  SkipIcon,
   UndoIcon,
 } from '../icons';
 import { addressLine, placeLine } from '../PackageCard';
@@ -80,11 +79,6 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
     } finally {
       setSaving(false);
     }
-  };
-
-  const skip = (id: string) => {
-    onAt(nextPendingAfter(id));
-    route.skip(id);
   };
 
   const header = (
@@ -234,9 +228,6 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
               </Button>
               <MapsButton pkg={pkg} onFix={() => onEdit(pkg.id)} />
             </div>
-            <Button variant="ghost" block className="mt-2" disabled={saving} onClick={() => skip(pkg.id)} aria-label="Pular para depois">
-              <SkipIcon /> Pular
-            </Button>
           </>
         ) : (
           // Resolvida: desfaz ou troca o resultado
