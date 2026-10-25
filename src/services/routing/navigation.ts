@@ -57,13 +57,6 @@ export function sameAddressCounts(packages: DeliveryPackage[]): Map<string, numb
   return counts;
 }
 
-/** "Pular para depois": a parada vai para o fim da rota. */
-export function moveStopToEnd(plan: RoutePlan, packageId: string): RoutePlan {
-  const stop = plan.stops.find((s) => s.packageId === packageId);
-  if (!stop) return plan;
-  return { ...plan, stops: [...plan.stops.filter((s) => s.packageId !== packageId), stop] };
-}
-
 /** Encomendas pendentes que não estão no plano (cadastradas depois do cálculo). */
 export function newPendingSince(plan: RoutePlan, packages: DeliveryPackage[], excluded: Set<string>): DeliveryPackage[] {
   const planned = new Set(plan.stops.map((s) => s.packageId));

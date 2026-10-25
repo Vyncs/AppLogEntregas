@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { currentPosition } from '../lib/geolocation';
 import { geocoder, matrixProvider } from '../lib/services';
 import { decideCandidates, needsGeocode, toPackageGeo } from '../services/geo/candidates';
-import { moveStopToEnd } from '../services/routing/navigation';
 import { planRoute, type CachedMatrix, type NamedPoint, type RoutePlan, type RoutePoint } from '../services/routing/planner';
 import { kvGet, kvSet } from '../services/storage/db';
 import type { LatLng } from '../types/package';
@@ -185,15 +184,11 @@ export function useRoute(packagesApi: PackagesApi) {
     (id: string) => setSaved((c) => ({ ...c, excluded: c.excluded.filter((e) => e !== id) })),
     [setSaved],
   );
-  const skip = useCallback(
-    (id: string) => setSaved((c) => (c.plan ? { ...c, plan: moveStopToEnd(c.plan, id) } : c)),
-    [setSaved],
-  );
   const clear = useCallback(() => setSaved(() => EMPTY), [setSaved]);
 
   const excludedSet = useMemo(() => new Set(saved.excluded), [saved.excluded]);
 
-  return { loaded, settings, setSettings, saved, excludedSet, busy, error, compute, recalcFromHere, exclude, include, skip, clear };
+  return { loaded, settings, setSettings, saved, excludedSet, busy, error, compute, recalcFromHere, exclude, include, clear };
 }
 
 export type RouteApi = ReturnType<typeof useRoute>;
