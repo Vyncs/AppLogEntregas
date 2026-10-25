@@ -128,3 +128,12 @@ export function GearIcon({ className = 'size-5' }: IconProps) {
     </svg>
   );
 }
+
+/** Caixa de encomenda (as entregas) */
+export function PackageIcon({ className = 'size-6' }: IconProps) {
+  return (
+    <svg {...svg} strokeWidth={2} className={className}>
+      <path d="M21 8 12 3 3 8v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8M7.5 5.5l9 5" />
+    </svg>
+  );
+}

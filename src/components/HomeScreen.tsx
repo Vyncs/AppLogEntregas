@@ -17,7 +17,7 @@ import { addressLine, placeLine } from './PackageCard';
 import { RouteMapModal } from './route/RouteMapModal';
 import { StartPointSection } from './route/StartPoint';
 import { StopRow } from './route/StopRow';
-import { MapIcon, PlusIcon, RefreshIcon } from './icons';
+import { MapIcon, PackageIcon, PlusIcon, RefreshIcon } from './icons';
 import { Button, Spinner } from './ui';
 
 type Filter = 'all' | PackageStatus;
@@ -83,10 +83,6 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
   const atAddress = useMemo(() => sameAddressCounts(packages.filter((p) => !excludedSet.has(p.id))), [packages, excludedSet]);
   const countAt = (pkg: DeliveryPackage) => atAddress.get(sameAddressKey(pkg.address) ?? '');
 
-  // Só a primeira letra maiúscula: "Sexta-feira, 23 de outubro"
-  const date = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
-  const today = date.charAt(0).toUpperCase() + date.slice(1);
-
   const canCompute = !busy && !!settings.start && pendingCount > 0;
   // Novas desde o cálculo; as que já ficaram sem localização não contam (recalcular não resolve)
   const unlocatedSet = new Set(saved.unlocated);
@@ -94,42 +90,7 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col pb-44">
-      <header className="bg-brand-700 px-4 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-white">
-        <h1 className="text-2xl font-bold tracking-tight">Rota Fácil</h1>
-        <p className="text-sm text-brand-100">{today}</p>
-
-        <dl className="mt-4 grid grid-cols-4 gap-2 text-center">
-          {(
-            [
-              ['Total', stats.total],
-              ['Pendentes', stats.pending],
-              ['Entregues', stats.delivered],
-              ['Problemas', stats.problem],
-            ] as const
-          ).map(([label, value]) => (
-            <div key={label} className="rounded-xl bg-white/10 px-1 py-2">
-              <dt className="text-[11px] text-brand-100">{label}</dt>
-              <dd className="text-xl font-bold">{value}</dd>
-            </div>
-          ))}
-        </dl>
-
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-brand-100">
-            <span>Progresso do dia</span>
-            <span>{Math.round(stats.progress * 100)}%</span>
-          </div>
-          <div
-            className="mt-1 h-2.5 overflow-hidden rounded-full bg-white/20"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(stats.progress * 100)}
-          >
-            <div className="h-full rounded-full bg-amber-300 transition-all" style={{ width: `${stats.progress * 100}%` }} />
-          </div>
-        </div>
-      </header>
+      <h1 className="sr-only">Rota Fácil</h1>
 
       {!online && (
         <p className="bg-amber-100 px-4 py-2 text-sm text-amber-900" role="status">
@@ -137,7 +98,7 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
         </p>
       )}
 
-      <main className="flex-1 space-y-3 px-4 pt-4">
+      <main className="flex-1 space-y-3 px-4 pt-[max(1rem,env(safe-area-inset-top))]">
         {packages.length > 0 && <StartPointSection route={route} />}
 
         {busy && (
@@ -160,20 +121,27 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
           className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base outline-none focus:border-brand-600"
         />
 
-        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar por situação">
-          {FILTERS.map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={filter === value}
-              onClick={() => setFilter(value)}
-              className={`min-h-10 shrink-0 rounded-full px-4 text-sm font-medium ring-1 transition ${
-                filter === value ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white text-slate-700 ring-slate-300'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        {/* Quatro colunas iguais: cabem na tela sem rolar para o lado */}
+        <div className="grid grid-cols-4 gap-2" role="group" aria-label="Filtrar por situação">
+          {FILTERS.map(([value, label]) => {
+            const count = value === 'all' ? stats.total : stats[value];
+            const active = filter === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setFilter(value)}
+                aria-label={`${label} (${count})`}
+                className={`flex min-h-14 min-w-0 flex-col items-center justify-center rounded-xl px-1 ring-1 transition ${
+                  active ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white text-slate-600 ring-slate-300'
+                }`}
+              >
+                <span className={`text-lg font-bold leading-tight ${active ? 'text-white' : FILTER_COUNT_TONE[value]}`}>{count}</span>
+                <span className="w-full truncate text-center text-[11px] font-medium">{label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {loading ? (
@@ -293,9 +261,14 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
               )}
             </Button>
           </div>
-          <Button size="lg" block className="mt-2" disabled={!!busy || !progress?.next} onClick={() => onDeliver()}>
-            {progress && progress.done > 0 && progress.next ? 'Continuar entregas' : 'Iniciar entregas'}
-          </Button>
+          {/* Com rota, conta as paradas dela; sem rota, o dia todo */}
+          <DeliverButton
+            resolved={progress ? progress.done : stats.delivered + stats.problem}
+            total={progress ? progress.total : stats.total}
+            pending={progress ? progress.total - progress.done : stats.pending}
+            disabled={!!busy || !progress?.next}
+            onClick={() => onDeliver()}
+          />
         </div>
       </div>
 
@@ -313,6 +286,60 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
         />
       )}
     </div>
+  );
+}
+
+const FILTER_COUNT_TONE: Record<Filter, string> = {
+  all: 'text-slate-800',
+  pending: 'text-sky-700',
+  delivered: 'text-emerald-700',
+  problem: 'text-amber-700',
+};
+
+interface DeliverButtonProps {
+  /** Entregues + com problema */
+  resolved: number;
+  total: number;
+  pending: number;
+  disabled: boolean;
+  onClick: () => void;
+}
+
+/**
+ * O botão das entregas é também o progresso: a parte resolvida se
+ * preenche por trás do texto, e a contagem ("12/30") fica à direita.
+ * "Iniciar" enquanto nada foi resolvido; "Continuar" quando já começou e ainda
+ * há pendentes.
+ */
+function DeliverButton({ resolved, total, pending, disabled, onClick }: DeliverButtonProps) {
+  const label = resolved === 0 ? 'Iniciar entregas' : pending > 0 ? 'Continuar entregas' : 'Entregas concluídas';
+  // Na tela, "entregas" vira o ícone do pacote: "Iniciar 📦", "Continuar 📦"
+  const verb = resolved === 0 ? 'Iniciar' : pending > 0 ? 'Continuar' : 'Concluídas';
+  const percent = total ? Math.round((resolved / total) * 100) : 0;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="relative mt-2 flex min-h-14 w-full items-center justify-center overflow-hidden rounded-xl bg-brand-800 px-5 text-lg font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <span
+        role="progressbar"
+        aria-label="Progresso do dia"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        className="absolute inset-y-0 left-0 bg-brand-600 transition-all"
+        style={{ width: `${percent}%` }}
+      />
+      <span className="relative inline-flex items-center gap-2">
+        {verb} <PackageIcon />
+      </span>
+      <span className="absolute right-5 text-base font-bold tabular-nums">
+        {resolved}/{total}
+      </span>
+    </button>
   );
 }
 
