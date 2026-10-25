@@ -153,7 +153,10 @@ describe('Rota Fácil — cadastro e entrega', () => {
     // Entregas: uma parada por vez, com o Google Maps nas coordenadas da parada
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar entregas' }));
     expect(await screen.findByText('Parada 1 de 3')).toBeTruthy();
-    expect(within(screen.getByRole('region', { name: 'Resumo da rota' })).getByText(/terminando na última entrega, rua a rua/)).toBeTruthy();
+    // Resumo só com paradas, distância e tempo
+    const resumo = screen.getByRole('region', { name: 'Resumo da rota' });
+    expect(within(resumo).getByText(/^3 paradas · .+ · ~\d+ min$/)).toBeTruthy();
+    expect(within(resumo).queryByText(/Partindo de/)).toBeNull();
     expect(screen.getByRole('heading', { name: 'Rua das Flores, 10' })).toBeTruthy();
     // O Maps recebe o endereço (ele acha o número da casa), não o ponto aproximado
     expect(screen.getByRole('link', { name: 'Abrir no Google Maps' }).getAttribute('href')).toContain(

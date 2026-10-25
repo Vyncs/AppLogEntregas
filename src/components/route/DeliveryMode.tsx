@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { PackagesApi } from '../../hooks/usePackages';
 import type { RouteApi } from '../../hooks/useRoute';
 import { useScrollReset } from '../../hooks/useScrollReset';
-import { googleMapsDirectionsUrl, newPendingSince, routeProgress, sameAddressKey } from '../../services/routing/navigation';
+import { googleMapsDirectionsUrl, routeProgress, sameAddressKey } from '../../services/routing/navigation';
 import type { PlannedStop } from '../../services/routing/planner';
 import type { DeliveryPackage, PackageStatus } from '../../types/package';
 import {
@@ -107,15 +107,9 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
   }
 
   const percent = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
-  const approximate = stops.filter((s) => {
-    const precision = byId.get(s.packageId)?.geo?.precision;
-    return precision && precision !== 'number';
-  }).length;
-  const unlocated = new Set(route.saved.unlocated);
-  const fresh = newPendingSince(plan, packages, route.excludedSet).filter((p) => !unlocated.has(p.id)).length;
   const summary = (
     <div className="mt-3">
-      <RouteSummary route={route} stopCount={stops.length} approximate={approximate} fresh={fresh} />
+      <RouteSummary route={route} stopCount={stops.length} />
     </div>
   );
   const bar = (
