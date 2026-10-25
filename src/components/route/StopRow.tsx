@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { formatDistance, formatDuration, googleMapsDirectionsUrl } from '../../services/routing/navigation';
 import type { PlannedStop } from '../../services/routing/planner';
 import type { DeliveryPackage, PackageStatus } from '../../types/package';
-import { addressLine, placeLine } from '../PackageCard';
+import { addressLine } from '../PackageCard';
 import { Button, ConfirmDialog, StatusBadge } from '../ui';
 
 interface StopRowProps {
@@ -15,7 +15,10 @@ interface StopRowProps {
 }
 
 /** Botão só com ícone, do tamanho de um dedo; o nome vai no `aria-label`. */
-const ICON = 'w-11 px-0!';
+const ICON = 'size-12 px-0!';
+/** Ações secundárias no canto: discretas, mas com área de toque de 40 px */
+const CORNER =
+  'inline-flex size-10 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50';
 
 /**
  * Uma parada da lista, com as ações sem precisar abrir as entregas. O endereço
@@ -41,20 +44,21 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude }: S
   };
 
   return (
-    <li className="flex gap-3 rounded-2xl bg-white p-3 ring-1 ring-slate-200">
-      <span
-        className={`flex size-6 shrink-0 items-center justify-center self-center rounded-full text-xs font-bold ${resolved ? 'bg-slate-200 text-slate-600' : 'bg-teal-700 text-white'}`}
-      >
-        {number}
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <div className={resolved ? 'opacity-60' : ''}>
+    <li className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
+      {/* Cabeçalho: número, endereço e as ações secundárias (editar, retirar) no canto */}
+      <div className="flex items-start gap-2.5">
+        <span
+          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${resolved ? 'bg-slate-200 text-slate-600' : 'bg-teal-700 text-white'}`}
+        >
+          {number}
+        </span>
+        <div className={`min-w-0 flex-1 ${resolved ? 'opacity-60' : ''}`}>
           <p className="font-semibold leading-snug text-slate-900">{addressLine(p) || 'Sem endereço'}</p>
           <p className="truncate text-sm text-slate-600">{p.recipientName || 'Sem nome'}</p>
-          <p className="text-xs text-slate-500">
-            {placeLine(p)} · +{formatDuration(stop.legSeconds)}
-            {stop.legMeters !== null && ` · ${formatDistance(stop.legMeters)}`}
+          <p className="truncate text-xs text-slate-500">
+            {[p.address.neighborhood, `+${formatDuration(stop.legSeconds)}`, stop.legMeters !== null ? formatDistance(stop.legMeters) : '']
+              .filter(Boolean)
+              .join(' · ')}
           </p>
           {p.geo && p.geo.precision !== 'number' && (
             <p className="text-xs font-medium text-amber-700">
@@ -62,54 +66,56 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude }: S
             </p>
           )}
         </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {resolved ? (
-            <>
-              <StatusBadge status={p.status} />
-              <Button variant="secondary" className={ICON} disabled={busy} onClick={() => void act('pending')} aria-label="Voltar para pendente" title="Voltar para pendente">
-                <UndoIcon />
-              </Button>
-              {p.status === 'problem' && (
-                <Button variant="success" className={ICON} disabled={busy} onClick={() => void act('delivered')} aria-label="Entregue" title="Entregue">
-                  <CheckIcon />
-                </Button>
-              )}
-            </>
-          ) : (
-            <>
-              <Button variant="success" className={ICON} disabled={busy} onClick={() => void act('delivered')} aria-label="Entregue" title="Entregue">
-                <CheckIcon />
-              </Button>
-              <Button variant="warning" className={ICON} disabled={busy} onClick={() => void act('problem')} aria-label="Problema" title="Problema">
-                <AlertIcon />
-              </Button>
-            </>
-          )}
-          <Button variant="ghost" className={ICON} disabled={busy} onClick={onEdit} aria-label="Editar" title="Editar">
+        <div className="-mr-1 -mt-1 flex shrink-0">
+          <button type="button" className={CORNER} disabled={busy} onClick={onEdit} aria-label="Editar" title="Editar">
             <PencilIcon />
-          </Button>
+          </button>
           {!resolved && (
-            <Button variant="ghost" className={ICON} disabled={busy} onClick={() => setConfirming(true)} aria-label="Retirar" title="Retirar da rota">
+            <button type="button" className={CORNER} disabled={busy} onClick={() => setConfirming(true)} aria-label="Retirar" title="Retirar da rota">
               <XIcon />
-            </Button>
+            </button>
           )}
         </div>
-        {failed && <p className="mt-2 text-xs font-medium text-red-700">Não foi possível salvar. Tente de novo.</p>}
       </div>
 
-      {canNavigate && (
-        <a
-          href={googleMapsDirectionsUrl(p.address, p.geo)}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Maps"
-          className="flex w-18 shrink-0 flex-col items-center justify-center gap-1 rounded-xl bg-brand-700 text-sm font-semibold text-white hover:bg-brand-800"
-        >
-          <PinIcon />
-          Maps
-        </a>
-      )}
+      {/* Ações principais, na altura do polegar: resultado à esquerda, navegação ocupando o resto */}
+      <div className="mt-3 flex items-center gap-2">
+        {resolved ? (
+          <>
+            <StatusBadge status={p.status} />
+            <span className="flex-1" />
+            {p.status === 'problem' && (
+              <Button variant="successSoft" className={ICON} disabled={busy} onClick={() => void act('delivered')} aria-label="Entregue" title="Entregue">
+                <CheckIcon />
+              </Button>
+            )}
+            <Button variant="secondary" className="min-h-10 px-3 text-xs" disabled={busy} onClick={() => void act('pending')}>
+              <UndoIcon /> Voltar para pendente
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="successSoft" className={ICON} disabled={busy} onClick={() => void act('delivered')} aria-label="Entregue" title="Entregue">
+              <CheckIcon />
+            </Button>
+            <Button variant="warningSoft" className={ICON} disabled={busy} onClick={() => void act('problem')} aria-label="Problema" title="Problema">
+              <AlertIcon />
+            </Button>
+            {canNavigate && (
+              <a
+                href={googleMapsDirectionsUrl(p.address, p.geo)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 font-semibold text-white hover:bg-brand-800 active:bg-brand-800"
+              >
+                <PinIcon />
+                Maps
+              </a>
+            )}
+          </>
+        )}
+      </div>
+      {failed && <p className="mt-2 text-xs font-medium text-red-700">Não foi possível salvar. Tente de novo.</p>}
 
       {confirming && (
         <ConfirmDialog
@@ -181,7 +187,7 @@ function UndoIcon() {
 
 function PinIcon() {
   return (
-    <svg {...svg} className="size-7">
+    <svg {...svg} className="size-5">
       <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" />
       <circle cx="12" cy="9.5" r="2.5" />
     </svg>
