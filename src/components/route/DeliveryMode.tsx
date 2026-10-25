@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { PackagesApi } from '../../hooks/usePackages';
 import type { RouteApi } from '../../hooks/useRoute';
-import { googleMapsDirectionsUrl, routeProgress } from '../../services/routing/navigation';
+import { googleMapsDirectionsUrl, routeProgress, sameAddressKey } from '../../services/routing/navigation';
 import type { PlannedStop } from '../../services/routing/planner';
 import type { PackageStatus } from '../../types/package';
 import { addressLine, placeLine } from '../PackageCard';
@@ -48,6 +48,19 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
       await packagesApi.setStatus(id, status);
       // Resolveu: segue para a próxima pendente. Voltou para pendente: fica nela.
       onAt(status === 'pending' ? id : nextPendingAfter(id));
+    } catch {
+      setFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Outra encomenda do mesmo endereço: marca sem sair da parada aberta */
+  const markHere = async (id: string, status: PackageStatus) => {
+    setSaving(true);
+    setFailed(false);
+    try {
+      await packagesApi.setStatus(id, status);
     } catch {
       setFailed(true);
     } finally {
@@ -121,6 +134,13 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
 
   const pkg = byId.get(stops[index].packageId)!;
   const pending = pkg.status === 'pending';
+  // Outras encomendas da rota no mesmo endereço (mesmo prédio, mesma casa)
+  const addressKey = sameAddressKey(pkg.address);
+  const sameAddress = addressKey
+    ? stops
+        .map((s) => byId.get(s.packageId)!)
+        .filter((p) => p.id !== pkg.id && sameAddressKey(p.address) === addressKey)
+    : [];
   const upcoming = stops.slice(index + 1).find(isPending);
   const upcomingPkg = upcoming ? byId.get(upcoming.packageId) : undefined;
 
@@ -145,6 +165,38 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
         <p className="mt-1 text-base text-slate-800">{addressLine(pkg)}</p>
         <p className="text-sm text-slate-500">{placeLine(pkg)}</p>
         {pkg.notes && <p className="mt-2 rounded-lg bg-slate-50 p-2 text-sm text-slate-700">{pkg.notes}</p>}
+
+        {sameAddress.length > 0 && (
+          <section aria-label="Mesmo endereço" className="mt-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-300">
+            <p className="font-semibold text-amber-900">
+              📦 {sameAddress.length === 1 ? 'Mais 1 encomenda' : `Mais ${sameAddress.length} encomendas`} neste endereço
+            </p>
+            <p className="text-xs text-amber-800">Entregue tudo de uma vez: confira os nomes nos pacotes.</p>
+            <ul className="mt-2 space-y-2">
+              {sameAddress.map((other) => (
+                <li key={other.id} className="flex items-center gap-2 rounded-lg bg-white p-2 ring-1 ring-amber-200">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{other.recipientName || 'Sem nome'}</p>
+                    {other.address.complement && <p className="truncate text-xs text-slate-600">{other.address.complement}</p>}
+                  </div>
+                  {other.status === 'pending' ? (
+                    <Button
+                      variant="success"
+                      className="min-h-9 shrink-0 px-3 text-xs"
+                      disabled={saving}
+                      onClick={() => void markHere(other.id, 'delivered')}
+                      aria-label={`Marcar ${other.recipientName || 'encomenda'} como entregue`}
+                    >
+                      Entregue
+                    </Button>
+                  ) : (
+                    <StatusBadge status={other.status} />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {pkg.trackingCode && <p className="mt-2 font-mono text-xs text-slate-500">{pkg.trackingCode}</p>}
 
         {pkg.geo || pkg.address.street ? (

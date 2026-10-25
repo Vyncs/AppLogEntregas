@@ -20,9 +20,9 @@ describe('validação do cadastro', () => {
     expect(validateValues(values())).toEqual({});
   });
 
-  it('aponta o que falta sem bloquear o rastreio vazio', () => {
+  it('aponta o que falta sem bloquear o rastreio nem o destinatário vazios', () => {
     const errors = validateValues(values({ recipientName: '', number: '', state: 'XX', cep: '123', trackingCode: '' }));
-    expect(Object.keys(errors).sort()).toEqual(['cep', 'number', 'recipientName', 'state']);
+    expect(Object.keys(errors).sort()).toEqual(['cep', 'number', 'state']);
   });
 });
 

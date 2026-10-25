@@ -143,3 +143,16 @@ describe('navegação', () => {
     expect(googleMapsDirectionsUrl({ ...endereco, number: '' }, ponto())).toContain('destination=-23.987654,-46.200000');
   });
 });
+
+describe('sameAddressKey', () => {
+  const address = (street: string, number: string, complement = '') => ({
+    cep: '13300-000', street, number, complement, neighborhood: 'Centro', city: 'Itu', state: 'SP',
+  });
+
+  it('mesma rua e número, mesmo com "R." e outro complemento, é o mesmo endereço', async () => {
+    const { sameAddressKey } = await import('./navigation');
+    expect(sameAddressKey(address('R. das Flores', '979', 'casa 1'))).toBe(sameAddressKey(address('Rua das Flores', '979', 'sobrado')));
+    expect(sameAddressKey(address('Rua das Flores', '979'))).not.toBe(sameAddressKey(address('Rua das Flores', '980')));
+    expect(sameAddressKey(address('Rua das Flores', 'S/N'))).toBeNull();
+  });
+});

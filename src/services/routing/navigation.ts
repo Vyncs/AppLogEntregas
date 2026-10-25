@@ -1,6 +1,7 @@
 import type { Address, DeliveryPackage, PackageGeo } from '../../types/package';
 import { formatCep } from '../label/cep';
 import type { PlannedStop, RoutePlan } from './planner';
+import { houseNumber, streetKey } from './streetOrder';
 
 /**
  * Entregas na ordem da rota. O Google Maps recebe uma parada por vez: um link
@@ -32,6 +33,28 @@ export function routeProgress(
     next: pendingIndex >= 0 ? stops[pendingIndex] : null,
     nextNumber: pendingIndex + 1,
   };
+}
+
+/**
+ * Chave do endereço para achar entregas no mesmo lugar: rua (sem o tipo de
+ * via, sem acento), número e cidade. O complemento fica de fora — apartamentos
+ * do mesmo prédio são o mesmo lugar para quem entrega. `null` sem rua ou número.
+ */
+export function sameAddressKey(a: Address): string | null {
+  const street = streetKey(a.street, a.city);
+  const number = houseNumber(a.number);
+  return street && number !== null ? `${street}|${number}` : null;
+}
+
+/** Quantas encomendas há em cada endereço (só os endereços com mais de uma). */
+export function sameAddressCounts(packages: DeliveryPackage[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const p of packages) {
+    const key = sameAddressKey(p.address);
+    if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  for (const [key, n] of counts) if (n < 2) counts.delete(key);
+  return counts;
 }
 
 /** "Pular para depois": a parada vai para o fim da rota. */
