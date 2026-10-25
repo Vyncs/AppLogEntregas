@@ -151,6 +151,10 @@ describe('Rota Fácil — cadastro e entrega', () => {
     expect(screen.queryByRole('region', { name: 'Resumo da rota' })).toBeNull();
 
     // Entregas: uma parada por vez, com o Google Maps nas coordenadas da parada
+    // O botão das entregas mostra o progresso da rota; os filtros, quantas há em cada situação
+    expect(screen.getByRole('button', { name: 'Iniciar entregas' }).textContent).toContain('0/3');
+    expect(screen.getByRole('button', { name: /^Pendentes \(\d+\)$/ })).toBeTruthy();
+
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar entregas' }));
     expect(await screen.findByText('Parada 1 de 3')).toBeTruthy();
     expect(within(screen.getByRole('region', { name: 'Resumo da rota' })).getByText(/terminando na última entrega, rua a rua/)).toBeTruthy();
@@ -189,6 +193,8 @@ describe('Rota Fácil — cadastro e entrega', () => {
     // Na lista principal, na ordem da rota: Maps, Entregue e desfazer sem abrir as entregas
     fireEvent.click(screen.getByRole('button', { name: 'Voltar para a lista' }));
     const lista = await screen.findByRole('list', { name: 'Ordem das entregas' });
+    // Uma entregue de três: "Continuar", com 1/3
+    expect(screen.getByRole('button', { name: 'Continuar entregas' }).textContent).toContain('1/3');
     const trinta = within(lista).getByText('Cliente Trinta').closest('li') as HTMLElement;
     expect(within(trinta).getByRole('link', { name: 'Maps' }).getAttribute('href')).toContain('destination=');
     fireEvent.click(within(trinta).getByRole('button', { name: 'Entregue' }));
