@@ -16,6 +16,7 @@ import {
   UndoIcon,
 } from '../icons';
 import { addressLine, placeLine } from '../PackageCard';
+import { ProblemDialog, problemNote } from '../ProblemDialog';
 import { RouteSummary } from './RouteSummary';
 import { Button, Spinner, StatusBadge } from '../ui';
 
@@ -43,6 +44,8 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
   const byId = useMemo(() => new Map(packages.map((p) => [p.id, p])), [packages]);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  /** Parada esperando o motivo do problema */
+  const [askingProblem, setAskingProblem] = useState<string | null>(null);
 
   const progress = plan ? routeProgress(plan, byId, route.excludedSet) : null;
   const stops = plan?.stops.filter((s) => byId.has(s.packageId) && !route.excludedSet.has(s.packageId)) ?? [];
@@ -58,11 +61,11 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
     return (stops.slice(index + 1).find(other) ?? stops.find(other))?.packageId ?? null;
   };
 
-  const mark = async (id: string, status: PackageStatus) => {
+  const mark = async (id: string, status: PackageStatus, note?: string) => {
     setSaving(true);
     setFailed(false);
     try {
-      await packagesApi.setStatus(id, status);
+      await packagesApi.setStatus(id, status, note);
       // Resolveu: segue para a próxima pendente. Voltou para pendente: fica nela.
       onAt(status === 'pending' ? id : nextPendingAfter(id));
     } catch {
@@ -196,7 +199,12 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
         <h2 className="mt-1 text-2xl font-bold leading-tight">{addressLine(pkg) || 'Sem endereço'}</h2>
         <p className="mt-1 text-lg text-slate-700">{pkg.recipientName || 'Sem nome'}</p>
         <p className="text-sm text-slate-500">{placeLine(pkg)}</p>
-        {pkg.notes && <p className="mt-2 rounded-lg bg-slate-50 p-2 text-sm text-slate-700">{pkg.notes}</p>}
+        {pkg.notes && <p className="mt-2 rounded-lg bg-slate-50 p-2 text-sm text-slate-700">📝 {pkg.notes}</p>}
+        {problemNote(pkg) && (
+          <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-900 ring-1 ring-amber-200">
+            <span className="font-semibold">Problema:</span> {problemNote(pkg)}
+          </p>
+        )}
 
         {sameAddress.length > 0 && (
           <section aria-label="Mesmo endereço" className="mt-3 rounded-xl bg-amber-50 p-3 ring-2 ring-amber-300">
@@ -239,7 +247,7 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
               <Button variant="success" className={BIG_ICON} disabled={saving} onClick={() => void mark(pkg.id, 'delivered')} aria-label="Entregue" title="Entregue">
                 {saving ? <Spinner /> : <CheckIcon className="size-8" />}
               </Button>
-              <Button variant="warning" className={BIG_ICON} disabled={saving} onClick={() => void mark(pkg.id, 'problem')} aria-label="Problema" title="Problema">
+              <Button variant="warning" className={BIG_ICON} disabled={saving} onClick={() => setAskingProblem(pkg.id)} aria-label="Problema" title="Problema">
                 <AlertIcon className="size-8" />
               </Button>
               <MapsButton pkg={pkg} onFix={() => onEdit(pkg.id)} />
@@ -256,7 +264,7 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
                 <CheckIcon className="size-8" />
               </Button>
             ) : (
-              <Button variant="warning" className={BIG_ICON} disabled={saving} onClick={() => void mark(pkg.id, 'problem')} aria-label="Problema" title="Problema">
+              <Button variant="warning" className={BIG_ICON} disabled={saving} onClick={() => setAskingProblem(pkg.id)} aria-label="Problema" title="Problema">
                 <AlertIcon className="size-8" />
               </Button>
             )}
@@ -265,6 +273,18 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
         )}
         {failed && <p className="mt-2 text-xs font-medium text-red-700">Não foi possível salvar. Tente de novo.</p>}
       </article>
+
+      {askingProblem && (
+        <ProblemDialog
+          address={addressLine(byId.get(askingProblem) ?? pkg) || 'Sem endereço'}
+          onConfirm={(note) => {
+            const id = askingProblem;
+            setAskingProblem(null);
+            void mark(id, 'problem', note);
+          }}
+          onCancel={() => setAskingProblem(null)}
+        />
+      )}
 
       <div className="mt-3 flex gap-2" role="group" aria-label="Navegar entre as paradas">
         <Button
