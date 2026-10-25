@@ -151,8 +151,8 @@ export const initialBlank = (): ReviewInitial => ({
 export type FormErrors = Partial<Record<FormKey, string>>;
 
 export function validateValues(values: FormValues): FormErrors {
+  // Na ordem da tela: o primeiro erro recebe o foco
   const errors: FormErrors = {};
-  if (values.recipientName.trim().length < 2) errors.recipientName = 'Informe o destinatário.';
   if (!isValidCepFormat(values.cep)) errors.cep = 'CEP precisa ter 8 dígitos.';
   if (!values.street.trim()) errors.street = 'Informe o logradouro.';
   if (!values.number.trim()) errors.number = 'Informe o número (ou S/N).';
@@ -160,6 +160,7 @@ export function validateValues(values: FormValues): FormErrors {
   if (!toUf(values.state)) errors.state = 'UF inválida.';
   const tracking = values.trackingCode.replace(/\s+/g, '');
   if (tracking && !/^[A-Za-z0-9-]{6,40}$/.test(tracking)) errors.trackingCode = 'Código de rastreio inválido.';
+  if (values.recipientName.trim().length < 2) errors.recipientName = 'Informe o destinatário.';
   return errors;
 }
 

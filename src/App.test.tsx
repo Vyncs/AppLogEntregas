@@ -53,14 +53,14 @@ const type = (label: string, value: string) =>
 
 /** Na tela de fotografar: cadastra digitando, na rua fictícia do CEP simulado. */
 const register = async (nome: string, numero: string) => {
-  fireEvent.click(await screen.findByRole('button', { name: 'Digitar sem foto' }));
-  type('Destinatário', nome);
+  // Os campos já vêm abertos: endereço primeiro, destinatário por último
   type('CEP', '06454000');
   await waitFor(() => expect((screen.getByLabelText('Logradouro') as HTMLInputElement).value).toBe('Rua das Flores'));
   type('Número', numero);
+  type('Destinatário', nome);
   fireEvent.click(screen.getByRole('button', { name: 'Salvar encomenda' }));
-  // Salvou quando volta ao início da captura (o aviso da anterior ainda pode estar na tela)
-  await screen.findByRole('button', { name: 'Digitar sem foto' });
+  // Salvou quando o formulário volta em branco
+  await waitFor(() => expect((screen.getByLabelText('Destinatário') as HTMLInputElement).value).toBe(''));
   expect(screen.getByText('✓ Encomenda salva')).toBeTruthy();
 };
 
@@ -70,7 +70,13 @@ describe('Rota Fácil — cadastro e entrega', () => {
     expect(await screen.findByText('Nenhuma encomenda ainda.')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Fotografar etiqueta/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Digitar sem foto' }));
+    // Sem precisar escolher "digitar": os campos vêm primeiro, com câmera e galeria logo abaixo
+    expect(screen.getByRole('button', { name: 'Tirar foto' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Escolher da galeria' })).toBeTruthy();
+    expect(screen.queryByText(/Fotografe a etiqueta de frente/)).toBeNull();
+    const ids = [...document.querySelectorAll('form input[id^="campo-"]')].map((el) => el.id);
+    expect(ids.slice(0, 3)).toEqual(['campo-cep', 'campo-street', 'campo-number']);
+    expect(ids.at(-1)).toBe('campo-recipientName');
 
     type('Destinatário', 'Maria Exemplo');
     type('CEP', '06454000');
@@ -102,7 +108,6 @@ describe('Rota Fácil — cadastro e entrega', () => {
   it('não salva com campos obrigatórios vazios e aponta o erro', async () => {
     render(<App />);
     fireEvent.click(await screen.findByRole('button', { name: /Fotografar etiqueta/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Digitar sem foto' }));
     fireEvent.click(screen.getByRole('button', { name: 'Salvar encomenda' }));
     expect(await screen.findByText('Informe o destinatário.')).toBeTruthy();
     expect(screen.getByText('Informe o número (ou S/N).')).toBeTruthy();
