@@ -109,7 +109,7 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
   const percent = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
   const summary = (
     <div className="mt-3">
-      <RouteSummary route={route} stopCount={stops.length} />
+      <RouteSummary route={route} stops={stops} byId={byId} />
     </div>
   );
   const bar = (
@@ -171,11 +171,10 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
       {summary}
 
       <article className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200" aria-label="Parada">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-teal-700">
-            Parada {index + 1} de {stops.length}
-          </p>
-          <div className="-mr-2 flex items-center gap-1">
+        {/* O endereço é o que se procura na rua; o nome confere na porta */}
+        <div className="flex items-start gap-2">
+          <h2 className="min-w-0 flex-1 text-2xl font-bold leading-tight">{addressLine(pkg) || 'Sem endereço'}</h2>
+          <div className="-mr-2 -mt-1 flex shrink-0 items-center gap-1">
             {!pending && <StatusBadge status={pkg.status} />}
             <button
               type="button"
@@ -189,8 +188,6 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
             </button>
           </div>
         </div>
-        {/* O endereço é o que se procura na rua; o nome confere na porta */}
-        <h2 className="mt-1 text-2xl font-bold leading-tight">{addressLine(pkg) || 'Sem endereço'}</h2>
         <p className="mt-1 text-lg text-slate-700">{pkg.recipientName || 'Sem nome'}</p>
         <p className="text-sm text-slate-500">{placeLine(pkg)}</p>
         {pkg.notes && <p className="mt-2 rounded-lg bg-slate-50 p-2 text-sm text-slate-700">📝 {pkg.notes}</p>}
