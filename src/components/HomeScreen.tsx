@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react';
 import type { PackagesApi } from '../hooks/usePackages';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import type { RouteApi } from '../hooks/useRoute';
 import { normalizeText } from '../services/label/text';
 import { computeStats, type DayStats } from '../services/packages/packageService';
+import { formatDistance, formatDuration, newPendingSince, routeProgress } from '../services/routing/navigation';
+import { SOURCE_LABEL } from '../services/routing/types';
 import type { DeliveryPackage, PackageStatus } from '../types/package';
 import { addressLine, PackageCard, placeLine } from './PackageCard';
+import { RouteMapModal } from './route/RouteMapModal';
+import { StartPointSection } from './route/StartPoint';
+import { StopRow } from './route/StopRow';
 import { Button, Spinner } from './ui';
 
 type Filter = 'all' | PackageStatus;
@@ -23,36 +29,63 @@ const matches = (pkg: DeliveryPackage, query: string) =>
 
 interface HomeScreenProps {
   packagesApi: PackagesApi;
+  route: RouteApi;
   onCapture: () => void;
-  onRoute: () => void;
   onEdit: (id: string) => void;
-  /** Rota em andamento: atalho para continuar */
-  routeProgress: { done: number; total: number } | null;
-  onContinue: () => void;
+  /** Entregas, na próxima pendente ou na parada indicada */
+  onDeliver: (at?: string) => void;
   /** Fim do dia: apaga as encomendas (todas ou só as entregues) e a rota */
   onClearDay: (onlyDelivered: boolean) => Promise<void>;
 }
 
-export function HomeScreen({ packagesApi, onCapture, onRoute, onEdit, routeProgress, onContinue, onClearDay }: HomeScreenProps) {
+/**
+ * Tela principal: partida, a lista do dia na ordem da rota (quando calculada)
+ * e as ações — fotografar, mapa, recalcular e entregas.
+ */
+export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, onClearDay }: HomeScreenProps) {
   const { packages, loading, error, setStatus } = packagesApi;
+  const { settings, saved, busy, excludedSet } = route;
   const online = useOnlineStatus();
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  const [showMap, setShowMap] = useState(false);
 
   const stats = computeStats(packages);
-  const visible = useMemo(() => {
+  const byId = useMemo(() => new Map(packages.map((p) => [p.id, p])), [packages]);
+  const plan = saved.plan;
+  const stops = useMemo(
+    () => (plan ? plan.stops.filter((s) => byId.has(s.packageId) && !excludedSet.has(s.packageId)) : []),
+    [plan, byId, excludedSet],
+  );
+  const progress = plan ? routeProgress(plan, byId, excludedSet) : null;
+  const fresh = plan ? newPendingSince(plan, packages, excludedSet) : [];
+  const pendingCount = packages.filter((p) => p.status === 'pending' && !excludedSet.has(p.id)).length;
+  const approximate = stops.filter((s) => {
+    const precision = byId.get(s.packageId)?.geo?.precision;
+    return precision && precision !== 'number';
+  }).length;
+
+  const shown = useMemo(() => {
     const query = normalizeText(search);
-    return packages.filter(
-      (pkg) => (filter === 'all' || pkg.status === filter) && (!query || matches(pkg, query)),
-    );
-  }, [packages, filter, search]);
+    return (pkg: DeliveryPackage) => (filter === 'all' || pkg.status === filter) && (!query || matches(pkg, query));
+  }, [filter, search]);
+
+  // Na rota: numeradas na ordem; o resto (novas, sem localização) vem depois
+  const inRoute = new Set(stops.map((s) => s.packageId));
+  const routeRows = stops
+    .map((s, i) => ({ stop: s, number: i + 1, pkg: byId.get(s.packageId)! }))
+    .filter((row) => shown(row.pkg));
+  const others = packages.filter((p) => !inRoute.has(p.id) && !excludedSet.has(p.id) && shown(p));
+  const excluded = packages.filter((p) => excludedSet.has(p.id));
 
   // Só a primeira letra maiúscula: "Sexta-feira, 23 de outubro"
   const date = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
   const today = date.charAt(0).toUpperCase() + date.slice(1);
 
+  const canCompute = !busy && !!settings.start && pendingCount > 0;
+
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col pb-28">
+    <div className={`mx-auto flex min-h-dvh max-w-md flex-col ${plan ? 'pb-44' : 'pb-28'}`}>
       <header className="bg-brand-700 px-4 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-white">
         <h1 className="text-2xl font-bold tracking-tight">Rota Fácil</h1>
         <p className="text-sm text-brand-100">{today}</p>
@@ -96,23 +129,22 @@ export function HomeScreen({ packagesApi, onCapture, onRoute, onEdit, routeProgr
         </p>
       )}
 
-      <main className="flex-1 px-4 pt-4">
-        {routeProgress && routeProgress.done < routeProgress.total && (
-          <button
-            type="button"
-            onClick={onContinue}
-            className="mb-3 flex w-full items-center justify-between rounded-2xl bg-teal-50 p-4 text-left ring-1 ring-teal-200"
-          >
-            <span>
-              <span className="block font-semibold text-teal-900">Continuar entregas</span>
-              <span className="text-sm text-teal-800">
-                {routeProgress.done} de {routeProgress.total} paradas resolvidas
-              </span>
-            </span>
-            <span aria-hidden="true" className="text-2xl text-teal-700">
-              →
-            </span>
-          </button>
+      <main className="flex-1 space-y-3 px-4 pt-4">
+        {packages.length > 0 && <StartPointSection route={route} />}
+
+        {busy && (
+          <p className="flex items-center gap-2 rounded-xl bg-white p-3 text-sm font-medium text-slate-700 ring-1 ring-slate-200" role="status">
+            <Spinner /> {busy}
+          </p>
+        )}
+        {route.error && (
+          <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">
+            {route.error}
+          </p>
+        )}
+
+        {plan && !busy && (
+          <RouteSummary route={route} stopCount={stops.length} done={progress?.done ?? 0} approximate={approximate} fresh={fresh.length} />
         )}
 
         <input
@@ -124,7 +156,7 @@ export function HomeScreen({ packagesApi, onCapture, onRoute, onEdit, routeProgr
           className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base outline-none focus:border-brand-600"
         />
 
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar por situação">
+        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrar por situação">
           {FILTERS.map(([value, label]) => (
             <button
               key={value}
@@ -153,39 +185,186 @@ export function HomeScreen({ packagesApi, onCapture, onRoute, onEdit, routeProgr
             <p className="font-medium text-slate-700">Nenhuma encomenda ainda.</p>
             <p className="mt-1 text-sm">Fotografe a primeira etiqueta para começar.</p>
           </div>
-        ) : visible.length === 0 ? (
+        ) : routeRows.length === 0 && others.length === 0 ? (
           <p className="mt-10 text-center text-sm text-slate-500">Nada encontrado com esse filtro.</p>
         ) : (
-          <ul className="mt-3 space-y-3">
-            {visible.map((pkg) => (
-              <PackageCard
-                key={pkg.id}
-                pkg={pkg}
-                onStatus={(status) => setStatus(pkg.id, status)}
-                onEdit={() => onEdit(pkg.id)}
-              />
-            ))}
-          </ul>
+          <>
+            {routeRows.length > 0 && (
+              <ol className="space-y-2" aria-label="Ordem das entregas">
+                {routeRows.map(({ stop, number, pkg }) => (
+                  <StopRow
+                    key={stop.packageId}
+                    number={number}
+                    stop={stop}
+                    pkg={pkg}
+                    onStatus={(status) => setStatus(pkg.id, status)}
+                    onEdit={() => onEdit(pkg.id)}
+                    onExclude={() => route.exclude(pkg.id)}
+                  />
+                ))}
+                {plan?.backLeg && filter === 'all' && !search && (
+                  <li className="rounded-2xl bg-white p-3 text-sm text-slate-600 ring-1 ring-slate-200">
+                    ↩ Volta para {plan.returnTo?.label}: +{formatDuration(plan.backLeg.seconds)}
+                    {plan.backLeg.meters !== null && ` · ${formatDistance(plan.backLeg.meters)}`}
+                  </li>
+                )}
+              </ol>
+            )}
+            {others.length > 0 && (
+              <section aria-label={plan ? 'Fora da rota' : 'Encomendas'}>
+                {plan && <p className="mb-2 mt-2 text-sm font-semibold text-slate-600">Fora da rota ({others.length})</p>}
+                <ul className="space-y-3">
+                  {others.map((pkg) => (
+                    <PackageCard
+                      key={pkg.id}
+                      pkg={pkg}
+                      onStatus={(status) => setStatus(pkg.id, status)}
+                      onEdit={() => onEdit(pkg.id)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
+        )}
+
+        {excluded.length > 0 && (
+          <section className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200" aria-label="Retiradas da rota">
+            <p className="text-sm font-semibold text-slate-700">Retiradas da rota ({excluded.length})</p>
+            <ul className="mt-2 space-y-2">
+              {excluded.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate">
+                    {p.recipientName || 'Sem nome'} · {addressLine(p)}
+                  </span>
+                  <Button variant="secondary" className="min-h-9 shrink-0" onClick={() => route.include(p.id)}>
+                    Voltar para a rota
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {!loading && !error && packages.length > 0 && <ClearDay stats={stats} onClear={onClearDay} />}
 
-        <p className="mt-6 text-center text-xs text-slate-400">
+        <p className="pt-3 text-center text-xs text-slate-400">
           As encomendas ficam salvas neste aparelho. Login e sincronização chegam na próxima etapa.
         </p>
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-slate-100 via-slate-100 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6">
-        <div className="mx-auto flex max-w-md gap-2">
-          <Button size="lg" className="flex-1" onClick={onCapture}>
-            <CameraIcon /> Fotografar etiqueta
-          </Button>
-          <Button size="lg" variant="secondary" onClick={onRoute} aria-label="Rota do dia">
-            Rota
-          </Button>
-        </div>
+      <div className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+        {plan ? (
+          <div className="mx-auto max-w-md">
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="secondary" className="px-2" onClick={onCapture} aria-label="Fotografar etiqueta">
+                <CameraIcon className="size-5" /> Foto
+              </Button>
+              <Button
+                variant="secondary"
+                className="px-2"
+                disabled={stops.length === 0}
+                onClick={() => setShowMap(true)}
+                aria-label="Ver mapa da rota"
+              >
+                <MapIcon /> Mapa
+              </Button>
+              <Button variant="secondary" className="px-2" disabled={!canCompute} onClick={() => void route.compute()}>
+                Recalcular
+              </Button>
+            </div>
+            {progress?.next && (
+              <Button size="lg" block className="mt-2" disabled={!!busy} onClick={() => onDeliver()}>
+                {progress.done > 0 ? 'Continuar entregas' : 'Iniciar entregas'}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="mx-auto flex max-w-md gap-2">
+            <Button size="lg" className="flex-1" onClick={onCapture}>
+              <CameraIcon /> Fotografar etiqueta
+            </Button>
+            {pendingCount > 0 && (
+              <Button
+                size="lg"
+                variant="secondary"
+                disabled={!canCompute}
+                onClick={() => void route.compute()}
+                aria-label={`Calcular rota (${pendingCount})`}
+              >
+                Rota ({pendingCount})
+              </Button>
+            )}
+          </div>
+        )}
       </div>
+
+      {showMap && plan && (
+        <RouteMapModal
+          plan={plan}
+          stops={stops}
+          byId={byId}
+          onStatus={setStatus}
+          onOpen={(id) => {
+            setShowMap(false);
+            onDeliver(id);
+          }}
+          onClose={() => setShowMap(false)}
+        />
+      )}
     </div>
+  );
+}
+
+interface RouteSummaryProps {
+  route: RouteApi;
+  stopCount: number;
+  done: number;
+  approximate: number;
+  fresh: number;
+}
+
+/** Totais da rota e os avisos: tempos estimados, localização aproximada, encomendas novas. */
+function RouteSummary({ route, stopCount, done, approximate, fresh }: RouteSummaryProps) {
+  const { saved, settings } = route;
+  const plan = saved.plan!;
+  return (
+    <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200" aria-label="Resumo da rota">
+      <p className="text-lg font-bold">
+        {stopCount} {stopCount === 1 ? 'parada' : 'paradas'}
+        {plan.totalMeters !== null && ` · ${formatDistance(plan.totalMeters)}`} · ~{formatDuration(plan.totalSeconds)}
+      </p>
+      <p className="text-xs text-slate-500">
+        Partindo de {plan.origin.label}
+        {plan.returnTo ? ', com volta' : ', terminando na última entrega'}
+        {settings.byStreet ? ', rua a rua' : ''}. Tempos: {SOURCE_LABEL[plan.source]} — não considera o trânsito em tempo
+        real.
+      </p>
+      {stopCount > 0 && (
+        <p className="mt-1 text-xs font-medium text-teal-800">
+          {done} de {stopCount} resolvidas
+        </p>
+      )}
+      {saved.fellBack && (
+        <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
+          {saved.fallbackReason && saved.fallbackReason !== 'Serviço de rotas indisponível no momento.'
+            ? `${saved.fallbackReason} Enquanto isso, a ordem saiu da distância em linha reta, menos precisa.`
+            : 'O serviço de rotas não respondeu: a ordem saiu da distância em linha reta, menos precisa. Recalcule quando houver internet.'}
+        </p>
+      )}
+      {approximate > 0 && (
+        <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
+          {approximate === stopCount ? 'Todas as paradas foram localizadas' : `${approximate} de ${stopCount} paradas foram localizadas`} só pela
+          rua (o mapa gratuito não tem o número das casas). A navegação no Google Maps vai pelo endereço completo e acerta o
+          número.
+        </p>
+      )}
+      {fresh > 0 && (
+        <p className="mt-2 rounded-lg bg-sky-50 p-2 text-xs text-sky-900">
+          {fresh} {fresh === 1 ? 'encomenda nova ficou' : 'encomendas novas ficaram'} fora desta rota. Recalcule para incluir.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -214,7 +393,7 @@ function ClearDay({ stats, onClear }: { stats: DayStats; onClear: (onlyDelivered
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-6 min-h-11 w-full rounded-xl text-sm font-semibold text-red-700 hover:bg-red-50"
+        className="mt-3 min-h-11 w-full rounded-xl text-sm font-semibold text-red-700 hover:bg-red-50"
       >
         Apagar o dia…
       </button>
@@ -222,7 +401,7 @@ function ClearDay({ stats, onClear }: { stats: DayStats; onClear: (onlyDelivered
   }
 
   return (
-    <section aria-label="Apagar o dia" className="mt-6 rounded-2xl bg-red-50 p-4 ring-1 ring-red-200">
+    <section aria-label="Apagar o dia" className="mt-3 rounded-2xl bg-red-50 p-4 ring-1 ring-red-200">
       <p className="font-semibold text-red-900">Apagar o dia?</p>
       <p className="mt-1 text-sm text-red-900">
         As encomendas e a rota calculada saem deste aparelho, e não dá para desfazer. O ponto de partida continua salvo.
@@ -255,11 +434,19 @@ function ClearDay({ stats, onClear }: { stats: DayStats; onClear: (onlyDelivered
   );
 }
 
-export function CameraIcon() {
+export function CameraIcon({ className = 'size-6' }: { className?: string }) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M4 8h3l2-3h6l2 3h3v11H4z" strokeLinejoin="round" />
       <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+function MapIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" strokeLinejoin="round" />
     </svg>
   );
 }

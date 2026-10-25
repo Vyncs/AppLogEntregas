@@ -17,6 +17,8 @@ export interface RouteSettings {
   start: StartPoint | null;
   /** Voltar ao ponto de partida no fim (padrão: não) */
   returnToStart: boolean;
+  /** Rua a rua, da mais perto para a seguinte (padrão), em vez da ordem mais rápida */
+  byStreet: boolean;
 }
 
 export interface SavedRoute {
@@ -33,11 +35,12 @@ export interface SavedRoute {
 
 const SETTINGS_KEY = 'route-settings';
 const ROUTE_KEY = 'route-plan';
+const DEFAULT_SETTINGS: RouteSettings = { start: null, returnToStart: false, byStreet: true };
 const EMPTY: SavedRoute = { plan: null, cache: null, excluded: [], unlocated: [], fellBack: false };
 
 /** Rota do dia: ponto de partida, cálculo, recálculo e ajustes, salvos no aparelho. */
 export function useRoute(packagesApi: PackagesApi) {
-  const [settings, setSettingsState] = useState<RouteSettings>({ start: null, returnToStart: false });
+  const [settings, setSettingsState] = useState<RouteSettings>(DEFAULT_SETTINGS);
   const [saved, setSavedState] = useState<SavedRoute>(EMPTY);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -46,7 +49,7 @@ export function useRoute(packagesApi: PackagesApi) {
   useEffect(() => {
     Promise.all([kvGet<RouteSettings>(SETTINGS_KEY), kvGet<SavedRoute>(ROUTE_KEY)])
       .then(([s, r]) => {
-        if (s) setSettingsState(s);
+        if (s) setSettingsState({ ...DEFAULT_SETTINGS, ...s });
         if (r) setSavedState({ ...EMPTY, ...r });
       })
       .catch(() => undefined)
@@ -88,8 +91,9 @@ export function useRoute(packagesApi: PackagesApi) {
       const unlocated: string[] = [];
       let done = 0;
       for (const p of pending) {
+        const street = { street: p.address.street, number: p.address.number, city: p.address.city };
         if (p.geo && !needsGeocode(p.geo, geocoder.id)) {
-          located.push({ id: p.id, location: p.geo.location });
+          located.push({ id: p.id, location: p.geo.location, street });
           continue;
         }
         done += 1;
@@ -99,7 +103,7 @@ export function useRoute(packagesApi: PackagesApi) {
           if (outcome.kind === 'found') {
             const geo = toPackageGeo(outcome.best);
             await packagesApi.setGeo(p.id, geo, null);
-            located.push({ id: p.id, location: geo.location });
+            located.push({ id: p.id, location: geo.location, street });
           } else {
             await packagesApi.setGeo(p.id, null, 'not-found');
             unlocated.push(p.id);
@@ -107,7 +111,7 @@ export function useRoute(packagesApi: PackagesApi) {
         } catch {
           // Sem conexão: fica com o ponto que já tinha, se tinha
           if (p.geo) {
-            located.push({ id: p.id, location: p.geo.location });
+            located.push({ id: p.id, location: p.geo.location, street });
           } else {
             await packagesApi.setGeo(p.id, null, 'unavailable');
             unlocated.push(p.id);
@@ -128,7 +132,14 @@ export function useRoute(packagesApi: PackagesApi) {
       setBusy(`Calculando tempos entre ${located.length} paradas…`);
       const returnTo = settings.returnToStart && start ? { id: 'start', label: start.label, location: start.location } : null;
       try {
-        const result = await planRoute({ origin: from, stops: located, returnTo, provider: matrixProvider, cache: saved.cache });
+        const result = await planRoute({
+          origin: from,
+          stops: located,
+          returnTo,
+          provider: matrixProvider,
+          cache: saved.cache,
+          byStreet: settings.byStreet,
+        });
         setSaved((current) => ({
           ...current,
           plan: result.plan,

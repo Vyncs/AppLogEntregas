@@ -1,11 +1,14 @@
 import type { LatLng } from '../../types/package';
 import { solveRoute } from './solver';
+import { orderByStreet, type StreetInfo } from './streetOrder';
 import { StraightLineMatrixProvider, straightLineSeconds } from './straightLineProvider';
 import { RoutingUnavailableError, type MatrixProvider, type MatrixSource } from './types';
 
 export interface RoutePoint {
   id: string;
   location: LatLng;
+  /** Rua e número, para a ordem por ruas */
+  street?: StreetInfo;
 }
 
 export interface NamedPoint extends RoutePoint {
@@ -49,6 +52,8 @@ export interface PlanInput {
   signal?: AbortSignal;
   now?: Date;
   timeLimitMs?: number;
+  /** Agrupa as paradas por rua em vez da ordem mais rápida */
+  byStreet?: boolean;
 }
 
 export interface PlanResult {
@@ -141,7 +146,7 @@ function costMatrix(matrix: CachedMatrix, points: RoutePoint[]): number[][] {
 }
 
 /**
- * Calcula a rota: partida → paradas na melhor ordem → (opcional) volta.
+ * Calcula a rota: partida → paradas na melhor ordem (ou rua a rua) → (opcional) volta.
  * Por padrão termina na última entrega, sem voltar para casa.
  */
 export async function planRoute(input: PlanInput): Promise<PlanResult> {
@@ -152,7 +157,9 @@ export async function planRoute(input: PlanInput): Promise<PlanResult> {
   const { matrix, cache, fellBack, fallbackReason, fetched } = await acquire(points, input.provider, input.cache, input.signal);
   const cost = costMatrix(matrix, points);
   const end = returnTo === null ? null : backHome ? points.length - 1 : 0;
-  const order = solveRoute(cost, { end, timeLimitMs: input.timeLimitMs ?? 400 });
+  const order = input.byStreet
+    ? orderByStreet(cost, points.map((p) => p.street), end)
+    : solveRoute(cost, { end, timeLimitMs: input.timeLimitMs ?? 400 });
 
   const leg = (from: number, to: number) => ({
     seconds: cost[from][to],
