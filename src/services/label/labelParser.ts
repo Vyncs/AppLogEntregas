@@ -41,6 +41,8 @@ export interface ParsedLabel {
   };
   /** Sequências impressas que parecem código de rastreio (para conferir com o código de barras). */
   trackingCandidates: string[];
+  /** Linhas do bloco do destinatário (nome e endereço), já limpas — para recortar e ler de novo */
+  recipientLines: string[];
   warnings: string[];
 }
 
@@ -53,10 +55,10 @@ const SORTING_TOKENS = new Set(['SVT', 'D2D', 'COD', 'STD', 'EXP']);
 /**
  * Marcador do bloco do destinatário: o ícone "TO". Impresso em branco num
  * círculo preto, o OCR raramente devolve "TO": em etiquetas reais saiu "Õ",
- * "ÕÔ", "fo)", "o", "IO"… Só conta no começo da linha, sozinho ou antes do nome.
+ * "ÕÔ", "fo)", "ro)", "o", "IO"… Só conta no começo da linha, sozinho ou antes do nome.
  */
 const TO_MARKER =
-  /^[\s\-–—:.([@°º]*(?:[TtIil1|fF]?\s?[OoÕÔÓÒÖõôóòö0Q][)\]]?|[OÕÔÓÒÖ]{2}|[@°º])(?=[\s:.\-–—]|$)[\s:.\-–—]*/;
+  /^[\s\-–—:.([@°º]*(?:[TtIil1|fFr]?\s?[OoÕÔÓÒÖõôóòö0Q][)\]]?|[OÕÔÓÒÖ]{2}|[@°º])(?=[\s:.\-–—]|$)[\s:.\-–—]*/;
 /**
  * Rótulo "Remetente", tolerando erro de OCR ("Remetenle", "Rernetente"): uma
  * palavra a até 2 letras de distância.
@@ -100,6 +102,8 @@ function cleanLine(line: string): string {
   return fixCepLookalikes(
     line
       .replace(SORTING_CODE, ' ')
+      // "$obrado": o S no começo da palavra lido como cifrão
+      .replace(/(^|[\s,])\$(?=[a-zà-ÿ])/g, '$1S')
       .replace(/[|¦«»©®_~^`"“”]+/g, ' ')
       .split(/\s+/)
       .filter((token) => !SORTING_TOKENS.has(token.toUpperCase()))
@@ -138,6 +142,18 @@ export function mergeSplitCeps(lines: string[]): string[] {
 function isNoiseLine(line: string): boolean {
   const withoutLogo = line.replace(LOGO_WORDS, '').replace(/[^A-Za-zÀ-ÿ0-9]/g, '');
   return withoutLogo.length < 3 || /\d{10,}/.test(line.replace(/\s/g, ''));
+}
+
+/**
+ * Nome sem o lixo que o OCR põe em volta: "Ana Souza [=] [5]", "Ana Souza |".
+ * Nome de pessoa não tem número nem símbolo; o que tiver sai.
+ */
+export function cleanName(value: string): string {
+  return value
+    .split(/\s+/)
+    .map((token) => token.replace(/^[,;:.]+|[,;:]+$/g, ''))
+    .filter((token) => /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'.\-]*$/.test(token))
+    .join(' ');
 }
 
 /** Parece nome de pessoa: só letras, ao menos duas palavras. */
@@ -342,6 +358,7 @@ export function parseLabelText(raw: string): ParsedLabel {
 
   // Começo do bloco do destinatário
   let name = '';
+  let nameIndex = -1;
   let nameConfidence: Confidence = 'medium';
   let addressStart = -1;
   const toIndex = lines.findIndex((line, i) => usable(i) && hasMarker(line));
@@ -350,9 +367,11 @@ export function parseLabelText(raw: string): ParsedLabel {
     const rest = stripMarker(lines[toIndex]);
     if (rest) {
       name = rest;
+      nameIndex = toIndex;
       addressStart = toIndex + 1;
     } else {
       name = lines[toIndex + 1] ?? '';
+      nameIndex = toIndex + 1;
       addressStart = toIndex + 2;
     }
   } else {
@@ -380,6 +399,7 @@ export function parseLabelText(raw: string): ParsedLabel {
       }
       if (first < anchor) {
         name = stripMarker(lines[first]);
+        nameIndex = first;
         addressStart = first + 1;
       } else {
         addressStart = anchor;
@@ -455,8 +475,10 @@ export function parseLabelText(raw: string): ParsedLabel {
     .sort(([, a], [, b]) => b - a)
     .map(([token]) => token);
 
+  const recipientLines = [...(nameIndex >= 0 && lines[nameIndex] ? [nameIndex] : []), ...addressIndexes].map((i) => lines[i]);
+
   return {
-    recipientName: field(name, nameConfidence),
+    recipientName: field(cleanName(name), nameConfidence),
     address: {
       cep: field(cep, cepConfidence),
       street: field(parsed.street, parsed.streetFound ? 'medium' : 'low'),
@@ -470,6 +492,7 @@ export function parseLabelText(raw: string): ParsedLabel {
     afterNumber: parsed.afterNumber,
     ceps: { large, inAddress },
     trackingCandidates,
+    recipientLines,
     warnings,
   };
 }

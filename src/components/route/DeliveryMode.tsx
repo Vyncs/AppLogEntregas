@@ -62,8 +62,8 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
 
   const header = (
     <header className="flex items-center gap-2">
-      <Button variant="ghost" onClick={onBack} aria-label="Voltar para a rota">
-        ← Rota
+      <Button variant="ghost" onClick={onBack} aria-label="Voltar para a lista">
+        ← Lista
       </Button>
       <h1 className="flex-1 text-lg font-bold">Entregas</h1>
     </header>
@@ -107,7 +107,7 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
             {problems > 0 && ` · ${problems} com problema`}
           </p>
           <Button className="mt-4" onClick={onBack}>
-            Voltar para a rota
+            Voltar para a lista
           </Button>
           {stops.length > 0 && (
             <Button variant="ghost" block className="mt-2" onClick={() => onAt(stops[stops.length - 1].packageId)}>

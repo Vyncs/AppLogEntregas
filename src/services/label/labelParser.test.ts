@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isCompleteLabel, joinLines, mergeSplitCeps, parseAddress, parseLabelText, scoreLabel } from './labelParser';
+import { cleanName, isCompleteLabel, joinLines, mergeSplitCeps, parseAddress, parseLabelText, scoreLabel } from './labelParser';
 
 // Todas as etiquetas abaixo são FICTÍCIAS: nomes, endereços e códigos inventados.
 
@@ -352,5 +352,26 @@ describe('joinLines', () => {
 
   it('junta hífen de quebra de linha', () => {
     expect(joinLines(['Residen-', 'cial Lua'])).toBe('Residencial Lua');
+  });
+});
+
+describe('sujeira do OCR em volta do destinatário (estrutura de etiqueta real, dados fictícios)', () => {
+  it('tira símbolos e números do nome e lê "$obrado" como "Sobrado"', () => {
+    const label = parseLabelText(`Ana Exemplo Souza [=] [5]
+Rua das Flores, 979 $obrado Itu, SP, 13300-000`);
+    expect(label.recipientName.value).toBe('Ana Exemplo Souza');
+    expect(label.address.number.value).toBe('979');
+    expect(label.afterNumber).toBe('Sobrado Itu');
+    expect(label.recipientLines).toHaveLength(2);
+  });
+
+  it('entende "ro)" como o ícone "TO"', () => {
+    const label = parseLabelText(`ro) Ana Exemplo Souza
+Rua das Flores, 979 Itu, SP, 13300-000`);
+    expect(label.recipientName.value).toBe('Ana Exemplo Souza');
+  });
+
+  it('cleanName mantém partículas e apóstrofo', () => {
+    expect(cleanName("| Maria d'Ávila da Silva, 12")).toBe("Maria d'Ávila da Silva");
   });
 });

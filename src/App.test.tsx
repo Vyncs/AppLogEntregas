@@ -117,8 +117,7 @@ describe('Rota Fácil — cadastro e entrega', () => {
     }
     fireEvent.click(screen.getByRole('button', { name: 'Voltar para as encomendas' }));
 
-    // Ponto de partida: casa no número 1
-    fireEvent.click(await screen.findByRole('button', { name: 'Rota do dia' }));
+    // Ponto de partida, no alto da lista: casa no número 1
     type('Endereço de partida', 'Rua das Flores 1, Barueri');
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
     fireEvent.click(await screen.findByRole('button', { name: /Rua das Flores 1, Barueri/ }));
@@ -129,7 +128,7 @@ describe('Rota Fácil — cadastro e entrega', () => {
       .getAllByRole('listitem')
       .map((li) => li.querySelector('p')?.textContent);
     expect(nomes).toEqual(['Cliente Dez', 'Cliente Vinte', 'Cliente Trinta']);
-    expect(screen.getByText(/terminando na última entrega/)).toBeTruthy();
+    expect(screen.getByText(/terminando na última entrega, rua a rua/)).toBeTruthy();
 
     // Entregas: uma parada por vez, com o Google Maps nas coordenadas da parada
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar entregas' }));
@@ -164,8 +163,8 @@ describe('Rota Fácil — cadastro e entrega', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Voltar sem salvar' }));
     expect(await screen.findByRole('heading', { name: 'Cliente Vinte' })).toBeTruthy();
 
-    // Na lista da rota: Maps, Entregue e desfazer sem abrir as entregas
-    fireEvent.click(screen.getByRole('button', { name: 'Voltar para a rota' }));
+    // Na lista principal, na ordem da rota: Maps, Entregue e desfazer sem abrir as entregas
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar para a lista' }));
     const lista = await screen.findByRole('list', { name: 'Ordem das entregas' });
     const trinta = within(lista).getByText('Cliente Trinta').closest('li') as HTMLElement;
     expect(within(trinta).getByRole('link', { name: 'Maps' }).getAttribute('href')).toContain('destination=');

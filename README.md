@@ -65,9 +65,18 @@ Abra no celular `http://IP-DO-PC:5173` (mesma rede Wi-Fi).
   - quando há mais de um lugar possível, você escolhe na lista ou no mapa;
   - o que não for localizado é salvo do mesmo jeito e tentado de novo no
     cálculo da rota, com opção de corrigir o endereço.
-- **Rota do dia (Etapa 5):**
-  - você define o ponto de partida (endereço ou localização atual) e a rota
-    termina na última entrega (voltar para casa é opcional);
+- **Rota do dia (Etapa 5), na própria tela principal:**
+  - o ponto de partida (endereço ou localização atual) fica no alto da lista, e
+    a rota termina na última entrega (voltar para casa é opcional);
+  - **por ruas** (padrão): as encomendas da mesma rua saem juntas, na ordem dos
+    números, começando pela rua mais perto da partida e seguindo para a mais
+    perto de onde a anterior terminou — como os pacotes ficam separados no
+    carro. Dá para desligar e usar a ordem mais rápida;
+  - a lista do dia aparece na ordem da rota, com Recalcular, Mapa e Iniciar
+    entregas embaixo;
+  - **Mapa:** abre em tela cheia, um círculo numerado por parada (as do mesmo
+    ponto viram um círculo com "+N"); tocar mostra a parada com Entregue,
+    Problema, Maps e Abrir parada;
   - os tempos são pelas ruas, considerando mão única;
   - mostra a sequência numerada, o tempo e a distância de cada trecho e os
     totais, sempre com o aviso de que **não considera trânsito em tempo real**;
@@ -112,7 +121,10 @@ OSRM. Servem para testar, não para o dia a dia. Para uso real:
 par de pontos. Com 151 pontos, dá ~22,8 mil pares, cerca de US$ 114 por cálculo
 depois da franquia; com trânsito, o limite é de 100 pares por consulta.
 
-**O otimizador** (`src/services/routing/solver.ts`):
+**Por ruas** (`src/services/routing/streetOrder.ts`) é o padrão: agrupa pelo
+nome da rua (sem o tipo de via, tolerando erro de leitura) e escolhe as ruas
+em sequência pela mais perto. **O otimizador** (`src/services/routing/solver.ts`),
+usado com "Organizar por ruas" desligado:
 - até 12 paradas, programação dinâmica (resultado ótimo);
 - acima disso, vizinho mais próximo e inserção mais barata, melhoradas por
   2-opt e Or-opt (custo de cada troca em tempo constante) e por perturbações
@@ -152,6 +164,11 @@ src/
   binarização (Otsu) derrubava a confiança do Tesseract de 92% para 77%, e de 85%
   para 55%. Cinza + contraste esticado fica igual ao original, e o Tesseract
   binariza por dentro.
+- **O destinatário é lido duas vezes.** A primeira leitura acha as linhas do
+  nome e do endereço; esse bloco é recortado da foto em resolução maior,
+  ampliado e lido de novo como um bloco só. O resultado só é usado se for pelo
+  menos tão completo quanto a primeira leitura. O nome perde o lixo do OCR
+  ("[=] [5]", "ro)") e "$obrado" vira "Sobrado".
 - **A etiqueta é recortada da foto antes do OCR.** Numa etiqueta real fotografada
   sobre o saco plástico, a foto inteira não rendeu nem o nome. O app acha o papel
   branco e recorta a etiqueta. O recorte muda muito o resultado: com o código de

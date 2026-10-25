@@ -1,5 +1,5 @@
 import type { Worker } from 'tesseract.js';
-import type { OcrProvider, OcrResult } from './ocrProvider';
+import type { OcrLine, OcrProvider, OcrResult, RecognizeOptions } from './ocrProvider';
 
 /**
  * Tesseract.js em português, rodando no próprio navegador. O worker é criado
@@ -43,10 +43,22 @@ export class TesseractOcrProvider implements OcrProvider {
     return this.worker;
   }
 
-  async recognize(image: HTMLCanvasElement): Promise<OcrResult> {
+  async recognize(image: HTMLCanvasElement, options: RecognizeOptions = {}): Promise<OcrResult> {
     const worker = await this.getWorker();
-    const { data } = await worker.recognize(image);
-    return { text: data.text, confidence: data.confidence, provider: this.id };
+    const { PSM } = await import('tesseract.js');
+    // Um worker só, uma leitura por vez (a fila de fotos é sequencial): dá para trocar o modo e voltar
+    if (options.singleBlock) await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
+    try {
+      const { data } = await worker.recognize(image, {}, { text: true, blocks: true });
+      const lines: OcrLine[] = (data.blocks ?? []).flatMap((block) =>
+        block.paragraphs.flatMap((paragraph) =>
+          paragraph.lines.map((line) => ({ text: line.text.replace(/\n$/, ''), box: line.bbox })),
+        ),
+      );
+      return { text: data.text, confidence: data.confidence, provider: this.id, lines };
+    } finally {
+      if (options.singleBlock) await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO });
+    }
   }
 
   async dispose(): Promise<void> {
