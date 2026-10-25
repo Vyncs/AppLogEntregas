@@ -157,7 +157,10 @@ describe('Rota Fácil — cadastro e entrega', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar entregas' }));
     expect(await screen.findByText('Parada 1 de 3')).toBeTruthy();
-    expect(within(screen.getByRole('region', { name: 'Resumo da rota' })).getByText(/terminando na última entrega, rua a rua/)).toBeTruthy();
+    // Resumo só com paradas, distância e tempo
+    const resumo = screen.getByRole('region', { name: 'Resumo da rota' });
+    expect(within(resumo).getByText(/^3 paradas · .+ · ~\d+ min$/)).toBeTruthy();
+    expect(within(resumo).queryByText(/Partindo de/)).toBeNull();
     expect(screen.getByRole('heading', { name: 'Rua das Flores, 10' })).toBeTruthy();
     // O Maps recebe o endereço (ele acha o número da casa), não o ponto aproximado
     expect(screen.getByRole('link', { name: 'Abrir no Google Maps' }).getAttribute('href')).toContain(
@@ -175,10 +178,18 @@ describe('Rota Fácil — cadastro e entrega', () => {
 
     // Problema por engano: segue para a pendente que sobrou; a seta volta nela e desfaz
     fireEvent.click(screen.getByRole('button', { name: 'Problema' }));
+    // Pede a justificativa: "Outro" exige a observação; cancelar não marca nada
+    const motivo = screen.getByRole('dialog', { name: 'Qual foi o problema?' });
+    fireEvent.click(within(motivo).getByRole('radio', { name: 'Outro' }));
+    expect((within(motivo).getByRole('button', { name: 'Confirmar' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(within(motivo).getByRole('radio', { name: 'Destinatário ausente' }));
+    fireEvent.change(within(motivo).getByLabelText(/Observação/), { target: { value: 'portão trancado' } });
+    fireEvent.click(within(motivo).getByRole('button', { name: 'Confirmar' }));
     expect(await screen.findByRole('heading', { name: 'Rua das Flores, 20' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Próxima parada' }));
     expect(await screen.findByRole('heading', { name: 'Rua das Flores, 30' })).toBeTruthy();
     expect(screen.getByText('Com problema')).toBeTruthy();
+    expect(screen.getByText('Destinatário ausente — portão trancado')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Voltar para pendente' }));
     expect(await screen.findByRole('button', { name: 'Problema' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Rua das Flores, 30' })).toBeTruthy();

@@ -169,7 +169,7 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
                     number={number}
                     stop={stop}
                     pkg={pkg}
-                    onStatus={(status) => setStatus(pkg.id, status)}
+                    onStatus={(status, note) => setStatus(pkg.id, status, note)}
                     onEdit={() => onEdit(pkg.id)}
                     onExclude={() => route.exclude(pkg.id)}
                     sameAddress={countAt(pkg)}
@@ -192,7 +192,7 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
                     <StopRow
                       key={pkg.id}
                       pkg={pkg}
-                      onStatus={(status) => setStatus(pkg.id, status)}
+                      onStatus={(status, note) => setStatus(pkg.id, status, note)}
                       onEdit={() => onEdit(pkg.id)}
                       onExclude={() => route.exclude(pkg.id)}
                       sameAddress={countAt(pkg)}

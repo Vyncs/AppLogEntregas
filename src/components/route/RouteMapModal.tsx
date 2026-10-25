@@ -5,6 +5,7 @@ import type { PlannedStop, RoutePlan } from '../../services/routing/planner';
 import type { DeliveryPackage, LatLng, PackageStatus } from '../../types/package';
 import type { MapMarker } from '../map/MapView';
 import { addressLine } from '../PackageCard';
+import { ProblemDialog, problemNote } from '../ProblemDialog';
 import { Button, StatusBadge } from '../ui';
 
 const MapView = lazy(() => import('../map/MapView'));
@@ -14,7 +15,7 @@ interface RouteMapModalProps {
   /** Paradas da rota, já sem as retiradas */
   stops: PlannedStop[];
   byId: Map<string, DeliveryPackage>;
-  onStatus: (id: string, status: PackageStatus) => Promise<void>;
+  onStatus: (id: string, status: PackageStatus, note?: string) => Promise<void>;
   /** Abre a parada nas entregas */
   onOpen: (id: string) => void;
   onClose: () => void;
@@ -145,7 +146,7 @@ export function RouteMapModal({ plan, stops, byId, onStatus, onOpen, onClose }: 
           </div>
           <ul className="space-y-3">
             {spot.items.map(({ number, pkg }) => (
-              <SpotItem key={pkg.id} number={number} pkg={pkg} onStatus={(status) => onStatus(pkg.id, status)} onOpen={() => onOpen(pkg.id)} />
+              <SpotItem key={pkg.id} number={number} pkg={pkg} onStatus={(status, note) => onStatus(pkg.id, status, note)} onOpen={() => onOpen(pkg.id)} />
             ))}
           </ul>
         </section>
@@ -157,7 +158,7 @@ export function RouteMapModal({ plan, stops, byId, onStatus, onOpen, onClose }: 
 interface SpotItemProps {
   number: number;
   pkg: DeliveryPackage;
-  onStatus: (status: PackageStatus) => Promise<void>;
+  onStatus: (status: PackageStatus, note?: string) => Promise<void>;
   onOpen: () => void;
 }
 
@@ -165,12 +166,14 @@ function SpotItem({ number, pkg, onStatus, onOpen }: SpotItemProps) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const pending = pkg.status === 'pending';
+  const [askingProblem, setAskingProblem] = useState(false);
+  const reason = problemNote(pkg);
 
-  const act = async (status: PackageStatus) => {
+  const act = async (status: PackageStatus, note?: string) => {
     setBusy(true);
     setFailed(false);
     try {
-      await onStatus(status);
+      await onStatus(status, note);
     } catch {
       setFailed(true);
     } finally {
@@ -198,7 +201,7 @@ function SpotItem({ number, pkg, onStatus, onOpen }: SpotItemProps) {
             <Button variant="success" disabled={busy} onClick={() => void act('delivered')}>
               Entregue
             </Button>
-            <Button variant="warning" disabled={busy} onClick={() => void act('problem')}>
+            <Button variant="warning" disabled={busy} onClick={() => setAskingProblem(true)}>
               Problema
             </Button>
           </>
@@ -221,7 +224,22 @@ function SpotItem({ number, pkg, onStatus, onOpen }: SpotItemProps) {
           Abrir parada
         </Button>
       </div>
+      {reason && (
+        <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-sm text-amber-900 ring-1 ring-amber-200">
+          <span className="font-semibold">Problema:</span> {reason}
+        </p>
+      )}
       {failed && <p className="mt-2 text-xs font-medium text-red-700">Não foi possível salvar. Tente de novo.</p>}
+      {askingProblem && (
+        <ProblemDialog
+          address={addressLine(pkg) || 'Sem endereço'}
+          onConfirm={(note) => {
+            setAskingProblem(false);
+            void act('problem', note);
+          }}
+          onCancel={() => setAskingProblem(false)}
+        />
+      )}
     </li>
   );
 }

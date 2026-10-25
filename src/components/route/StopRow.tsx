@@ -3,6 +3,7 @@ import { formatDistance, formatDuration, googleMapsDirectionsUrl } from '../../s
 import type { PlannedStop } from '../../services/routing/planner';
 import type { DeliveryPackage, PackageStatus } from '../../types/package';
 import { addressLine } from '../PackageCard';
+import { ProblemDialog, problemNote } from '../ProblemDialog';
 import { AlertIcon, CheckIcon, PencilIcon, PinIcon, UndoIcon, XIcon } from '../icons';
 import { Button, ConfirmDialog, StatusBadge } from '../ui';
 
@@ -12,7 +13,8 @@ interface StopRowProps {
   /** Trecho desde a parada anterior; sem rota, não aparece */
   stop?: PlannedStop;
   pkg: DeliveryPackage;
-  onStatus: (status: PackageStatus) => Promise<void>;
+  /** `note`: a justificativa, quando é "com problema" */
+  onStatus: (status: PackageStatus, note?: string) => Promise<void>;
   onEdit: () => void;
   onExclude: () => void;
   /** Quantas encomendas há neste endereço (contando esta), quando mais de uma */
@@ -35,14 +37,16 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude, sam
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [askingProblem, setAskingProblem] = useState(false);
+  const reason = problemNote(p);
   const resolved = p.status !== 'pending';
   const canNavigate = !resolved && (p.geo || p.address.street);
 
-  const act = async (status: PackageStatus) => {
+  const act = async (status: PackageStatus, note?: string) => {
     setBusy(true);
     setFailed(false);
     try {
-      await onStatus(status);
+      await onStatus(status, note);
     } catch {
       setFailed(true);
     } finally {
@@ -86,6 +90,7 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude, sam
               .filter(Boolean)
               .join(' · ')}
           </p>
+          {p.notes && <p className="mt-1 line-clamp-2 text-xs text-slate-600">📝 {p.notes}</p>}
           {sameAddress && sameAddress > 1 && (
             <p className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
               📦 {sameAddress} encomendas neste endereço
@@ -114,6 +119,12 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude, sam
         </div>
       </div>
 
+      {reason && (
+        <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-sm text-amber-900 ring-1 ring-amber-200">
+          <span className="font-semibold">Problema:</span> {reason}
+        </p>
+      )}
+
       {/* Ações principais, na altura do polegar: resultado à esquerda, navegação ocupando o resto */}
       <div className="mt-3 flex items-center gap-2">
         {resolved ? (
@@ -134,7 +145,7 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude, sam
             <Button variant="successSoft" className={ICON} disabled={busy} onClick={() => void act('delivered')} aria-label="Entregue" title="Entregue">
               <CheckIcon />
             </Button>
-            <Button variant="warningSoft" className={ICON} disabled={busy} onClick={() => void act('problem')} aria-label="Problema" title="Problema">
+            <Button variant="warningSoft" className={ICON} disabled={busy} onClick={() => setAskingProblem(true)} aria-label="Problema" title="Problema">
               <AlertIcon />
             </Button>
             {canNavigate && (
@@ -152,6 +163,17 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude, sam
         )}
       </div>
       {failed && <p className="mt-2 text-xs font-medium text-red-700">Não foi possível salvar. Tente de novo.</p>}
+
+      {askingProblem && (
+        <ProblemDialog
+          address={addressLine(p) || 'Sem endereço'}
+          onConfirm={(note) => {
+            setAskingProblem(false);
+            void act('problem', note);
+          }}
+          onCancel={() => setAskingProblem(false)}
+        />
+      )}
 
       {confirming && (
         <ConfirmDialog
