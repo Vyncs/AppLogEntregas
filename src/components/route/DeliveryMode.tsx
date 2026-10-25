@@ -3,9 +3,23 @@ import type { PackagesApi } from '../../hooks/usePackages';
 import type { RouteApi } from '../../hooks/useRoute';
 import { googleMapsDirectionsUrl, routeProgress, sameAddressKey } from '../../services/routing/navigation';
 import type { PlannedStop } from '../../services/routing/planner';
-import type { PackageStatus } from '../../types/package';
+import type { DeliveryPackage, PackageStatus } from '../../types/package';
+import {
+  AlertIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PencilIcon,
+  PinIcon,
+  RefreshIcon,
+  SkipIcon,
+  UndoIcon,
+} from '../icons';
 import { addressLine, placeLine } from '../PackageCard';
 import { Button, Spinner, StatusBadge } from '../ui';
+
+/** Entregue / Problema / Voltar: quadrados grandes, só ícone (o nome vai no aria-label) */
+const BIG_ICON = 'size-16 shrink-0 px-0!';
 
 interface DeliveryModeProps {
   packagesApi: PackagesApi;
@@ -154,15 +168,23 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
           <p className="text-sm font-semibold text-teal-700">
             Parada {index + 1} de {stops.length}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="-mr-2 flex items-center gap-1">
             {!pending && <StatusBadge status={pkg.status} />}
-            <Button variant="ghost" className="min-h-9 px-3" disabled={saving} onClick={() => onEdit(pkg.id)}>
-              Editar
-            </Button>
+            <button
+              type="button"
+              className="inline-flex size-10 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+              disabled={saving}
+              onClick={() => onEdit(pkg.id)}
+              aria-label="Editar"
+              title="Editar"
+            >
+              <PencilIcon />
+            </button>
           </div>
         </div>
-        <h2 className="mt-1 text-2xl font-bold">{pkg.recipientName || 'Sem nome'}</h2>
-        <p className="mt-1 text-base text-slate-800">{addressLine(pkg)}</p>
+        {/* O endereço é o que se procura na rua; o nome confere na porta */}
+        <h2 className="mt-1 text-2xl font-bold leading-tight">{addressLine(pkg) || 'Sem endereço'}</h2>
+        <p className="mt-1 text-lg text-slate-700">{pkg.recipientName || 'Sem nome'}</p>
         <p className="text-sm text-slate-500">{placeLine(pkg)}</p>
         {pkg.notes && <p className="mt-2 rounded-lg bg-slate-50 p-2 text-sm text-slate-700">{pkg.notes}</p>}
 
@@ -181,13 +203,14 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
                   </div>
                   {other.status === 'pending' ? (
                     <Button
-                      variant="success"
-                      className="min-h-9 shrink-0 px-3 text-xs"
+                      variant="successSoft"
+                      className="size-10 shrink-0 px-0!"
                       disabled={saving}
                       onClick={() => void markHere(other.id, 'delivered')}
                       aria-label={`Marcar ${other.recipientName || 'encomenda'} como entregue`}
+                      title="Entregue"
                     >
-                      Entregue
+                      <CheckIcon className="size-5" />
                     </Button>
                   ) : (
                     <StatusBadge status={other.status} />
@@ -199,88 +222,118 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
         )}
         {pkg.trackingCode && <p className="mt-2 font-mono text-xs text-slate-500">{pkg.trackingCode}</p>}
 
-        {pkg.geo || pkg.address.street ? (
-          <a
-            href={googleMapsDirectionsUrl(pkg.address, pkg.geo)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 flex min-h-14 items-center justify-center rounded-xl bg-brand-700 text-lg font-semibold text-white"
-          >
-            Abrir no Google Maps
-          </a>
-        ) : (
-          <Button variant="secondary" block className="mt-4" onClick={() => onEdit(pkg.id)}>
-            Sem localização — corrigir endereço
-          </Button>
-        )}
-
         {pending ? (
           <>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button variant="success" size="lg" disabled={saving} onClick={() => void mark(pkg.id, 'delivered')}>
-                {saving ? <Spinner /> : 'Entregue'}
+            {/* Mesma linha de ações do card da lista, maior: resultado à esquerda, navegação no resto */}
+            <div className="mt-4 flex gap-2">
+              <Button variant="success" className={BIG_ICON} disabled={saving} onClick={() => void mark(pkg.id, 'delivered')} aria-label="Entregue" title="Entregue">
+                {saving ? <Spinner /> : <CheckIcon className="size-8" />}
               </Button>
-              <Button variant="warning" size="lg" disabled={saving} onClick={() => void mark(pkg.id, 'problem')}>
-                Problema
+              <Button variant="warning" className={BIG_ICON} disabled={saving} onClick={() => void mark(pkg.id, 'problem')} aria-label="Problema" title="Problema">
+                <AlertIcon className="size-8" />
               </Button>
+              <MapsButton pkg={pkg} onFix={() => onEdit(pkg.id)} />
             </div>
-            <Button variant="ghost" block className="mt-2" disabled={saving} onClick={() => skip(pkg.id)}>
-              Pular para depois
+            <Button variant="ghost" block className="mt-2" disabled={saving} onClick={() => skip(pkg.id)} aria-label="Pular para depois">
+              <SkipIcon /> Pular
             </Button>
           </>
         ) : (
           // Resolvida: desfaz ou troca o resultado
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <Button variant="secondary" disabled={saving} onClick={() => void mark(pkg.id, 'pending')}>
-              {saving ? <Spinner /> : 'Voltar para pendente'}
+          <div className="mt-4 flex gap-2">
+            <Button variant="secondary" className={BIG_ICON} disabled={saving} onClick={() => void mark(pkg.id, 'pending')} aria-label="Voltar para pendente" title="Voltar para pendente">
+              {saving ? <Spinner /> : <UndoIcon className="size-7" />}
             </Button>
             {pkg.status === 'problem' ? (
-              <Button variant="success" disabled={saving} onClick={() => void mark(pkg.id, 'delivered')}>
-                Entregue
+              <Button variant="success" className={BIG_ICON} disabled={saving} onClick={() => void mark(pkg.id, 'delivered')} aria-label="Entregue" title="Entregue">
+                <CheckIcon className="size-8" />
               </Button>
             ) : (
-              <Button variant="warning" disabled={saving} onClick={() => void mark(pkg.id, 'problem')}>
-                Problema
+              <Button variant="warning" className={BIG_ICON} disabled={saving} onClick={() => void mark(pkg.id, 'problem')} aria-label="Problema" title="Problema">
+                <AlertIcon className="size-8" />
               </Button>
             )}
+            <MapsButton pkg={pkg} onFix={() => onEdit(pkg.id)} />
           </div>
         )}
         {failed && <p className="mt-2 text-xs font-medium text-red-700">Não foi possível salvar. Tente de novo.</p>}
       </article>
 
-      <div className="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="Navegar entre as paradas">
-        <Button variant="secondary" disabled={saving || index === 0} onClick={() => onAt(stops[index - 1].packageId)}>
-          ← Anterior
+      <div className="mt-3 flex gap-2" role="group" aria-label="Navegar entre as paradas">
+        <Button
+          variant="secondary"
+          className="size-12 shrink-0 px-0!"
+          disabled={saving || index === 0}
+          onClick={() => onAt(stops[index - 1].packageId)}
+          aria-label="Parada anterior"
+          title="Parada anterior"
+        >
+          <ChevronLeftIcon />
         </Button>
         <Button
           variant="secondary"
+          className="min-h-12 min-w-0 flex-1 px-2"
+          disabled={!!route.busy}
+          onClick={() => void route.recalcFromHere()}
+          aria-label="Recalcular as restantes a partir daqui"
+          title="Recalcular as restantes a partir daqui"
+        >
+          {route.busy ? (
+            <>
+              <Spinner /> <span className="truncate">{route.busy}</span>
+            </>
+          ) : (
+            <>
+              <RefreshIcon /> Recalcular daqui
+            </>
+          )}
+        </Button>
+        <Button
+          variant="secondary"
+          className="size-12 shrink-0 px-0!"
           disabled={saving || index === stops.length - 1}
           onClick={() => onAt(stops[index + 1].packageId)}
+          aria-label="Próxima parada"
+          title="Próxima parada"
         >
-          Próxima →
+          <ChevronRightIcon />
         </Button>
       </div>
 
       {upcomingPkg && (
         <p className="mt-3 rounded-xl bg-white p-3 text-sm text-slate-600 ring-1 ring-slate-200">
-          Depois: <strong>{upcomingPkg.recipientName || 'Sem nome'}</strong> — {addressLine(upcomingPkg)}
+          Depois: <strong>{addressLine(upcomingPkg) || 'Sem endereço'}</strong> — {upcomingPkg.recipientName || 'Sem nome'}
         </p>
       )}
 
-      <Button variant="secondary" block className="mt-3" disabled={!!route.busy} onClick={() => void route.recalcFromHere()}>
-        {route.busy ? (
-          <>
-            <Spinner /> {route.busy}
-          </>
-        ) : (
-          'Recalcular as restantes a partir daqui'
-        )}
-      </Button>
       {route.error && (
         <p className="mt-2 text-xs font-medium text-red-700" role="alert">
           {route.error}
         </p>
       )}
     </div>
+  );
+}
+
+/** Navegação até a parada; sem rua nem ponto, leva para corrigir o endereço. */
+function MapsButton({ pkg, onFix }: { pkg: DeliveryPackage; onFix: () => void }) {
+  if (!pkg.geo && !pkg.address.street) {
+    return (
+      <Button variant="secondary" className="min-h-16 flex-1" onClick={onFix}>
+        Sem localização — corrigir
+      </Button>
+    );
+  }
+  return (
+    <a
+      href={googleMapsDirectionsUrl(pkg.address, pkg.geo)}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Abrir no Google Maps"
+      className="flex min-h-16 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 text-lg font-semibold text-white hover:bg-brand-800 active:bg-brand-800"
+    >
+      <PinIcon className="size-6" />
+      Maps
+    </a>
   );
 }

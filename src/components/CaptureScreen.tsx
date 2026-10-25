@@ -7,7 +7,7 @@ import type { ReadingStage } from '../services/label/labelPipeline';
 import { recordReading } from '../services/metrics';
 import { DuplicateTrackingError } from '../services/packages/packageService';
 import type { DeliveryPackage, PackageDraft } from '../types/package';
-import { CameraIcon } from './HomeScreen';
+import { CameraIcon, FolderIcon } from './icons';
 import { addressLine, placeLine } from './PackageCard';
 import { ReviewForm } from './review/ReviewForm';
 import { initialBlank, initialFromPackage, initialFromReading, type ReviewInitial } from './review/reviewModel';
@@ -351,14 +351,6 @@ function PhotoButton({ label, onClick, children, ...rest }: PhotoButtonProps) {
       {children}
       {label}
     </button>
-  );
-}
-
-function FolderIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
-      <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" />
-    </svg>
   );
 }
 

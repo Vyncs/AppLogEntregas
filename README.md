@@ -55,7 +55,7 @@ Abra no celular `http://IP-DO-PC:5173` (mesma rede Wi-Fi).
 - **Lista do dia:** totais, progresso, busca (inclusive por rastreio), filtros e
   ações rápidas (entregue, problema, voltar para pendente), com histórico de status.
   - "Excluir" na edição apaga uma encomenda cadastrada por engano;
-  - "Apagar o dia…", no fim da lista, apaga todas as encomendas ou só as
+  - "APAGAR TUDO" (botão vermelho), no fim da lista, apaga todas as encomendas ou só as
     entregues (as outras ficam para o dia seguinte), junto com a rota calculada.
     O ponto de partida continua salvo. Não tem lixeira: o app pede confirmação.
 

@@ -150,35 +150,35 @@ describe('Rota Fácil — cadastro e entrega', () => {
     // Entregas: uma parada por vez, com o Google Maps nas coordenadas da parada
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar entregas' }));
     expect(await screen.findByText('Parada 1 de 3')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Cliente Dez' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Rua das Flores, 10' })).toBeTruthy();
     // O Maps recebe o endereço (ele acha o número da casa), não o ponto aproximado
     expect(screen.getByRole('link', { name: 'Abrir no Google Maps' }).getAttribute('href')).toContain(
       `destination=${encodeURIComponent('Rua das Flores, 10, Barueri - SP, 06454-000')}`,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Entregue' }));
-    expect(await screen.findByRole('heading', { name: 'Cliente Vinte' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Rua das Flores, 20' })).toBeTruthy();
     expect(screen.getByText('Parada 2 de 3')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Pular para depois' }));
-    expect(await screen.findByRole('heading', { name: 'Cliente Trinta' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Rua das Flores, 30' })).toBeTruthy();
 
     // Problema por engano: Anterior volta nela e desfaz
     fireEvent.click(screen.getByRole('button', { name: 'Problema' }));
-    expect(await screen.findByRole('heading', { name: 'Cliente Vinte' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '← Anterior' }));
-    expect(await screen.findByRole('heading', { name: 'Cliente Trinta' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Rua das Flores, 20' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Parada anterior' }));
+    expect(await screen.findByRole('heading', { name: 'Rua das Flores, 30' })).toBeTruthy();
     expect(screen.getByText('Com problema')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Voltar para pendente' }));
     expect(await screen.findByRole('button', { name: 'Pular para depois' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Cliente Trinta' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Rua das Flores, 30' })).toBeTruthy();
 
     // Editar e voltar mantém a parada aberta
-    fireEvent.click(screen.getByRole('button', { name: 'Próxima →' }));
-    expect(await screen.findByRole('heading', { name: 'Cliente Vinte' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Próxima parada' }));
+    expect(await screen.findByRole('heading', { name: 'Rua das Flores, 20' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Voltar sem salvar' }));
-    expect(await screen.findByRole('heading', { name: 'Cliente Vinte' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Rua das Flores, 20' })).toBeTruthy();
 
     // Na lista principal, na ordem da rota: Maps, Entregue e desfazer sem abrir as entregas
     fireEvent.click(screen.getByRole('button', { name: 'Voltar para a lista' }));
@@ -221,13 +221,13 @@ describe('Rota Fácil — cadastro e entrega', () => {
     await waitFor(() => expect(within(entregue).getByText('Entregue', { selector: 'span' })).toBeTruthy());
 
     // Fim do dia guardando a pendente para amanhã; a rota calculada vai junto
-    fireEvent.click(screen.getByRole('button', { name: 'Apagar o dia…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'APAGAR TUDO' }));
     fireEvent.click(screen.getByRole('button', { name: /Apagar só as entregues/ }));
     await waitFor(() => expect(screen.queryByText('Cliente Entregue')).toBeNull());
     expect(screen.getByText('Cliente Amanhã')).toBeTruthy();
     expect(screen.queryByText('Continuar entregas')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Apagar o dia…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'APAGAR TUDO' }));
     fireEvent.click(screen.getByRole('button', { name: /Apagar todas/ }));
     expect(await screen.findByText('Nenhuma encomenda ainda.')).toBeTruthy();
   });
@@ -250,7 +250,14 @@ describe('Rota Fácil — cadastro e entrega', () => {
     await screen.findByRole('list', { name: 'Ordem das entregas' });
     expect(screen.getAllByText('📦 2 encomendas neste endereço')).toHaveLength(2);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Iniciar entregas' }));
+    // Tocar no card abre as entregas já naquela parada, na ordem da rota
+    fireEvent.click(screen.getByRole('button', { name: /Abrir a parada 2:/ }));
+    expect(await screen.findByText('Parada 2 de 2')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Parada anterior' }));
+    expect(await screen.findByText('Parada 1 de 2')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar para a lista' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Iniciar entregas' }));
     const aviso = await screen.findByRole('region', { name: 'Mesmo endereço' });
     expect(within(aviso).getByText(/Mais 1 encomenda neste endereço/)).toBeTruthy();
     const outra = within(aviso).getByRole('button', { name: /Marcar Cliente (Ana|Bia) como entregue/ });
