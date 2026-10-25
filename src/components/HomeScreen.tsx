@@ -18,6 +18,7 @@ import { addressLine, placeLine } from './PackageCard';
 import { RouteMapModal } from './route/RouteMapModal';
 import { StartPointSection } from './route/StartPoint';
 import { StopRow } from './route/StopRow';
+import { MapIcon, PlusIcon, RefreshIcon } from './icons';
 import { Button, Spinner } from './ui';
 
 type Filter = 'all' | PackageStatus;
@@ -213,6 +214,7 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
                     onEdit={() => onEdit(pkg.id)}
                     onExclude={() => route.exclude(pkg.id)}
                     sameAddress={countAt(pkg)}
+                    onOpen={() => onDeliver(pkg.id)}
                   />
                 ))}
                 {plan?.backLeg && filter === 'all' && !search && (
@@ -397,19 +399,15 @@ function ClearDay({ stats, onClear }: { stats: DayStats; onClear: (onlyDelivered
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="mt-3 min-h-11 w-full rounded-xl text-sm font-semibold text-red-700 hover:bg-red-50"
-      >
-        Apagar o dia…
-      </button>
+      <Button variant="destructive" block className="mt-3 tracking-wide" onClick={() => setOpen(true)}>
+        APAGAR TUDO
+      </Button>
     );
   }
 
   return (
-    <section aria-label="Apagar o dia" className="mt-3 rounded-2xl bg-red-50 p-4 ring-1 ring-red-200">
-      <p className="font-semibold text-red-900">Apagar o dia?</p>
+    <section aria-label="Apagar tudo" className="mt-3 rounded-2xl bg-red-50 p-4 ring-1 ring-red-200">
+      <p className="font-semibold text-red-900">Apagar tudo?</p>
       <p className="mt-1 text-sm text-red-900">
         As encomendas e a rota calculada saem deste aparelho, e não dá para desfazer. O ponto de partida continua salvo.
       </p>
@@ -438,38 +436,5 @@ function ClearDay({ stats, onClear }: { stats: DayStats; onClear: (onlyDelivered
         </p>
       )}
     </section>
-  );
-}
-
-export function CameraIcon({ className = 'size-6' }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M4 8h3l2-3h6l2 3h3v11H4z" strokeLinejoin="round" />
-      <circle cx="12" cy="13" r="4" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-function RefreshIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" />
-    </svg>
-  );
-}
-
-function MapIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" strokeLinejoin="round" />
-    </svg>
   );
 }
