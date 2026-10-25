@@ -87,7 +87,12 @@ describe('Rota Fácil — cadastro e entrega', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Voltar para as encomendas' }));
     const card = (await screen.findByText('Maria Exemplo')).closest('li') as HTMLElement;
     expect(within(card).getByText('Rua das Flores, 539 — Apto 14')).toBeTruthy();
-    expect(within(card).getByText('Pendente')).toBeTruthy();
+    // Mesmo card da rota, antes de calcular: Maps já abre (o Maps parte de onde o celular está)
+    expect(within(card).getByRole('link', { name: /Maps/ }).getAttribute('href')).toContain('destination=');
+    expect(within(card).getByRole('button', { name: 'Problema' })).toBeTruthy();
+    // Sem rota: entregas e mapa desligados, cálculo disponível depois da partida
+    expect((screen.getByRole('button', { name: 'Iniciar entregas' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Ver mapa da rota' }) as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(within(card).getByRole('button', { name: 'Entregue' }));
     await waitFor(() => expect(within(card).getByText('Entregue', { selector: 'span' })).toBeTruthy());
@@ -122,7 +127,7 @@ describe('Rota Fácil — cadastro e entrega', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }));
     fireEvent.click(await screen.findByRole('button', { name: /Rua das Flores 1, Barueri/ }));
 
-    fireEvent.click(await screen.findByRole('button', { name: /Calcular rota \(3\)/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Calcular rota' }));
     const ordem = await screen.findByRole('list', { name: 'Ordem das entregas' });
     // O endereço vem primeiro no card; o nome logo abaixo
     const paradas = within(ordem).getAllByRole('listitem');

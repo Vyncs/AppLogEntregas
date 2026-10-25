@@ -7,7 +7,7 @@ import { computeStats, type DayStats } from '../services/packages/packageService
 import { formatDistance, formatDuration, newPendingSince, routeProgress } from '../services/routing/navigation';
 import { SOURCE_LABEL } from '../services/routing/types';
 import type { DeliveryPackage, PackageStatus } from '../types/package';
-import { addressLine, PackageCard, placeLine } from './PackageCard';
+import { addressLine, placeLine } from './PackageCard';
 import { RouteMapModal } from './route/RouteMapModal';
 import { StartPointSection } from './route/StartPoint';
 import { StopRow } from './route/StopRow';
@@ -83,9 +83,12 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
   const today = date.charAt(0).toUpperCase() + date.slice(1);
 
   const canCompute = !busy && !!settings.start && pendingCount > 0;
+  // Novas desde o cálculo; as que já ficaram sem localização não contam (recalcular não resolve)
+  const unlocatedSet = new Set(saved.unlocated);
+  const outdated = fresh.filter((p) => !unlocatedSet.has(p.id)).length;
 
   return (
-    <div className={`mx-auto flex min-h-dvh max-w-md flex-col ${plan ? 'pb-44' : 'pb-28'}`}>
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col pb-44">
       <header className="bg-brand-700 px-4 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-white">
         <h1 className="text-2xl font-bold tracking-tight">Rota Fácil</h1>
         <p className="text-sm text-brand-100">{today}</p>
@@ -213,13 +216,14 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
             {others.length > 0 && (
               <section aria-label={plan ? 'Fora da rota' : 'Encomendas'}>
                 {plan && <p className="mb-2 mt-2 text-sm font-semibold text-slate-600">Fora da rota ({others.length})</p>}
-                <ul className="space-y-3">
+                <ul className="space-y-2">
                   {others.map((pkg) => (
-                    <PackageCard
+                    <StopRow
                       key={pkg.id}
                       pkg={pkg}
                       onStatus={(status) => setStatus(pkg.id, status)}
                       onEdit={() => onEdit(pkg.id)}
+                      onExclude={() => route.exclude(pkg.id)}
                     />
                   ))}
                 </ul>
@@ -254,49 +258,41 @@ export function HomeScreen({ packagesApi, route, onCapture, onEdit, onDeliver, o
       </main>
 
       <div className="fixed inset-x-0 bottom-0 border-t border-slate-200 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-        {plan ? (
-          <div className="mx-auto max-w-md">
-            <div className="grid grid-cols-3 gap-2">
-              <Button variant="secondary" className="px-2" onClick={onCapture} aria-label="Fotografar etiqueta">
-                <CameraIcon className="size-5" /> Foto
-              </Button>
-              <Button
-                variant="secondary"
-                className="px-2"
-                disabled={stops.length === 0}
-                onClick={() => setShowMap(true)}
-                aria-label="Ver mapa da rota"
-              >
-                <MapIcon /> Mapa
-              </Button>
-              <Button variant="secondary" className="px-2" disabled={!canCompute} onClick={() => void route.compute()}>
-                Recalcular
-              </Button>
-            </div>
-            {progress?.next && (
-              <Button size="lg" block className="mt-2" disabled={!!busy} onClick={() => onDeliver()}>
-                {progress.done > 0 ? 'Continuar entregas' : 'Iniciar entregas'}
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="mx-auto flex max-w-md gap-2">
-            <Button size="lg" className="flex-1" onClick={onCapture}>
-              <CameraIcon /> Fotografar etiqueta
+        <div className="mx-auto max-w-md">
+          <div className="grid grid-cols-3 gap-2">
+            <Button variant="secondary" className="px-2" onClick={onCapture} aria-label="Fotografar etiqueta (adicionar à rota)">
+              <PlusIcon /> Rota
             </Button>
-            {pendingCount > 0 && (
-              <Button
-                size="lg"
-                variant="secondary"
-                disabled={!canCompute}
-                onClick={() => void route.compute()}
-                aria-label={`Calcular rota (${pendingCount})`}
-              >
-                Rota ({pendingCount})
-              </Button>
-            )}
+            <Button
+              variant="secondary"
+              className="px-2"
+              disabled={!plan || stops.length === 0}
+              onClick={() => setShowMap(true)}
+              aria-label="Ver mapa da rota"
+            >
+              <MapIcon /> Mapa
+            </Button>
+            <Button
+              variant={outdated > 0 ? 'info' : 'secondary'}
+              className="relative px-2"
+              disabled={!canCompute}
+              onClick={() => void route.compute()}
+              aria-label={
+                !plan ? 'Calcular rota' : outdated > 0 ? `Recalcular rota (${outdated} ${outdated === 1 ? 'nova' : 'novas'})` : 'Recalcular rota'
+              }
+            >
+              <RefreshIcon /> {plan ? 'Recalcular' : 'Calcular'}
+              {outdated > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex min-w-5 items-center justify-center rounded-full bg-sky-600 px-1 text-xs font-bold text-white ring-2 ring-white">
+                  {outdated}
+                </span>
+              )}
+            </Button>
           </div>
-        )}
+          <Button size="lg" block className="mt-2" disabled={!!busy || !progress?.next} onClick={() => onDeliver()}>
+            {progress && progress.done > 0 && progress.next ? 'Continuar entregas' : 'Iniciar entregas'}
+          </Button>
+        </div>
       </div>
 
       {showMap && plan && (
@@ -439,6 +435,22 @@ export function CameraIcon({ className = 'size-6' }: { className?: string }) {
     <svg aria-hidden="true" viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M4 8h3l2-3h6l2 3h3v11H4z" strokeLinejoin="round" />
       <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" />
     </svg>
   );
 }

@@ -6,6 +6,8 @@ import { TomTomGeocoder } from '../services/geo/tomtomGeocoder';
 import type { Geocoder } from '../services/geo/types';
 import { OrsMatrixProvider } from '../services/routing/orsProvider';
 import { OsrmMatrixProvider } from '../services/routing/osrmProvider';
+import { fetchRouteLine } from '../services/routing/routeLine';
+import type { LatLng } from '../types/package';
 import type { MatrixProvider } from '../services/routing/types';
 import { readLabel, type LabelReading, type ReadingStage } from '../services/label/labelPipeline';
 import { TesseractOcrProvider } from '../services/ocr/tesseractProvider';
@@ -34,6 +36,10 @@ export const geocoder: Geocoder = env.VITE_GOOGLE_MAPS_API_KEY
 export const matrixProvider: MatrixProvider = env.VITE_ORS_API_KEY
   ? new OrsMatrixProvider(env.VITE_ORS_API_KEY)
   : new OsrmMatrixProvider(env.VITE_OSRM_URL || undefined);
+
+/** Desenho da rota pelas ruas, no mesmo serviço dos tempos. */
+export const routeLine = (points: LatLng[], signal?: AbortSignal) =>
+  fetchRouteLine(points, { orsKey: env.VITE_ORS_API_KEY, osrmUrl: env.VITE_OSRM_URL, signal });
 
 let barcodeReader: Promise<BarcodeReader> | null = null;
 const getBarcodeReader = () => (barcodeReader ??= createBarcodeReader());

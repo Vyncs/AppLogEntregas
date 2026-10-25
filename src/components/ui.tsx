@@ -10,6 +10,7 @@ type ButtonVariant =
   | 'successSoft'
   | 'warning'
   | 'warningSoft'
+  | 'info'
   | 'danger'
   | 'destructive';
 
@@ -21,6 +22,8 @@ const VARIANT: Record<ButtonVariant, string> = {
   warning: 'bg-amber-500 text-white hover:bg-amber-600',
   /** Versões claras: ação frequente que não deve competir com o botão principal */
   successSoft: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100 active:bg-emerald-100',
+  /** Chama atenção sem alarmar (ex.: rota desatualizada) */
+  info: 'bg-sky-50 text-sky-800 ring-1 ring-sky-300 hover:bg-sky-100',
   warningSoft: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 hover:bg-amber-100 active:bg-amber-100',
   danger: 'bg-white text-red-700 ring-1 ring-red-300 hover:bg-red-50',
   /** Confirmação de algo que não volta (apagar) */

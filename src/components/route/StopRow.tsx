@@ -6,8 +6,10 @@ import { addressLine } from '../PackageCard';
 import { Button, ConfirmDialog, StatusBadge } from '../ui';
 
 interface StopRowProps {
-  number: number;
-  stop: PlannedStop;
+  /** Posição na rota; sem rota calculada (ou fora dela), sem número */
+  number?: number;
+  /** Trecho desde a parada anterior; sem rota, não aparece */
+  stop?: PlannedStop;
   pkg: DeliveryPackage;
   onStatus: (status: PackageStatus) => Promise<void>;
   onEdit: () => void;
@@ -48,18 +50,28 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude }: S
       {/* Cabeçalho: número, endereço e as ações secundárias (editar, retirar) no canto */}
       <div className="flex items-start gap-2.5">
         <span
-          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${resolved ? 'bg-slate-200 text-slate-600' : 'bg-teal-700 text-white'}`}
+          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${resolved || number === undefined ? 'bg-slate-200 text-slate-600' : 'bg-teal-700 text-white'}`}
+          aria-hidden={number === undefined}
         >
-          {number}
+          {number ?? '–'}
         </span>
         <div className={`min-w-0 flex-1 ${resolved ? 'opacity-60' : ''}`}>
           <p className="font-semibold leading-snug text-slate-900">{addressLine(p) || 'Sem endereço'}</p>
           <p className="truncate text-sm text-slate-600">{p.recipientName || 'Sem nome'}</p>
           <p className="truncate text-xs text-slate-500">
-            {[p.address.neighborhood, `+${formatDuration(stop.legSeconds)}`, stop.legMeters !== null ? formatDistance(stop.legMeters) : '']
+            {[
+              p.address.neighborhood,
+              stop ? `+${formatDuration(stop.legSeconds)}` : '',
+              stop && stop.legMeters !== null ? formatDistance(stop.legMeters) : '',
+            ]
               .filter(Boolean)
               .join(' · ')}
           </p>
+          {!resolved && !p.geo && (
+            <p className="text-xs font-medium text-amber-700">
+              {p.geoProblem === 'not-found' ? 'Endereço não localizado no mapa — fica fora da rota' : 'Ainda sem localização'}
+            </p>
+          )}
           {p.geo && p.geo.precision !== 'number' && (
             <p className="text-xs font-medium text-amber-700">
               Localização aproximada ({p.geo.precision === 'street' ? 'pela rua' : p.geo.precision === 'cep' ? 'pelo CEP' : 'só a cidade'})
