@@ -77,6 +77,8 @@ Abra no celular `http://IP-DO-PC:5173` (mesma rede Wi-Fi).
   - **Mapa:** abre em tela cheia, um círculo numerado por parada (as do mesmo
     ponto viram um círculo com "+N"); tocar mostra a parada com Entregue,
     Problema, Maps e Abrir parada;
+  - no mapa, um ponto azul mostra onde você está, em tempo real; o botão de
+    localização faz o mapa seguir você (arrastar o mapa para de seguir);
   - os tempos são pelas ruas, considerando mão única;
   - mostra a sequência numerada, o tempo e a distância de cada trecho e os
     totais, sempre com o aviso de que **não considera trânsito em tempo real**;

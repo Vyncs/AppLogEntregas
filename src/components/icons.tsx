@@ -137,3 +137,12 @@ export function PackageIcon({ className = 'size-6' }: IconProps) {
     </svg>
   );
 }
+
+/** Seta de localização ("onde estou") */
+export function LocateIcon({ className = 'size-5' }: IconProps) {
+  return (
+    <svg {...svg} strokeWidth={2} className={className}>
+      <path d="M3 11 21 3l-8 18-2-8-8-2z" />
+    </svg>
+  );
+}

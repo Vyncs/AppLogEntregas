@@ -25,3 +25,35 @@ export function currentPosition(timeoutMs = 10_000): Promise<LatLng> {
     );
   });
 }
+
+export interface LivePosition {
+  location: LatLng;
+  /** Raio de incerteza, em metros */
+  accuracy: number;
+}
+
+/**
+ * Acompanha a posição do celular enquanto o mapa está aberto (o GPS só fica
+ * ligado nesse tempo). Devolve a função que para de acompanhar.
+ */
+export function watchPosition(onPosition: (p: LivePosition) => void, onError: (message: string) => void): () => void {
+  if (!window.isSecureContext) {
+    onError('Sua localização só aparece com o app em HTTPS.');
+    return () => undefined;
+  }
+  if (!('geolocation' in navigator)) {
+    onError('Este navegador não informa a localização.');
+    return () => undefined;
+  }
+  const id = navigator.geolocation.watchPosition(
+    (p) => onPosition({ location: { lat: p.coords.latitude, lng: p.coords.longitude }, accuracy: p.coords.accuracy }),
+    (e) =>
+      onError(
+        e.code === e.PERMISSION_DENIED
+          ? 'Permita o acesso à localização para ver onde você está.'
+          : 'Não foi possível obter sua localização agora.',
+      ),
+    { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 },
+  );
+  return () => navigator.geolocation.clearWatch(id);
+}
