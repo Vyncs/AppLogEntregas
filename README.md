@@ -29,6 +29,17 @@ Abra no celular `http://IP-DO-PC:5173` (mesma rede Wi-Fi).
 - **Primeira leitura:** baixa o leitor de texto em português (~15 MB, do jsDelivr),
   uma vez só. Depois fica em cache no navegador.
 
+### Instalar na tela de início
+
+O app abre como um aplicativo (ícone próprio, tela cheia, sem a barra do navegador):
+
+- **iPhone:** abra o site no **Safari** → Compartilhar → **Adicionar à Tela de Início**.
+- **Android:** abra no **Chrome** → menu ⋮ → **Instalar app** (ou "Adicionar à tela inicial").
+
+As encomendas do app instalado ficam separadas das do navegador: o que foi
+cadastrado pelo Safari/Chrome não aparece no ícone, e vice-versa. Instale e use só
+pelo ícone (até a sincronização com o Supabase, na Etapa 3).
+
 ## O que já funciona (Etapas 1, 2, 4, 5 e 6)
 
 - **Cadastro por foto, em fila:** tirar foto ou escolher várias da galeria. As
