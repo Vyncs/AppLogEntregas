@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { watchPosition, type LivePosition } from '../../lib/geolocation';
 import { routeLine } from '../../lib/services';
 import { googleMapsDirectionsUrl } from '../../services/routing/navigation';
 import type { PlannedStop, RoutePlan } from '../../services/routing/planner';
 import type { DeliveryPackage, LatLng, PackageStatus } from '../../types/package';
 import type { MapMarker } from '../map/MapView';
+import { LocateIcon } from '../icons';
 import { addressLine } from '../PackageCard';
 import { ProblemDialog, problemNote } from '../ProblemDialog';
 import { Button, StatusBadge } from '../ui';
@@ -35,6 +37,21 @@ interface Spot {
  */
 export function RouteMapModal({ plan, stops, byId, onStatus, onOpen, onClose }: RouteMapModalProps) {
   const [selected, setSelected] = useState<number | null>(null);
+  // Onde você está, acompanhado enquanto o mapa está aberto
+  const [me, setMe] = useState<LivePosition | null>(null);
+  const [meError, setMeError] = useState<string | null>(null);
+  const [follow, setFollow] = useState(false);
+  useEffect(
+    () =>
+      watchPosition(
+        (p) => {
+          setMe(p);
+          setMeError(null);
+        },
+        setMeError,
+      ),
+    [],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -102,6 +119,7 @@ export function RouteMapModal({ plan, stops, byId, onStatus, onOpen, onClose }: 
           Fechar
         </Button>
       </header>
+      {meError && <p className="bg-slate-50 px-4 py-1.5 text-xs text-slate-600">{meError}</p>}
       {streetsFailed && (
         <p className="bg-slate-50 px-4 py-1.5 text-xs text-slate-600">
           Sem o desenho pelas ruas agora: a linha tracejada liga as paradas em linha reta.
@@ -122,8 +140,24 @@ export function RouteMapModal({ plan, stops, byId, onStatus, onOpen, onClose }: 
             height="100%"
             keepView
             onSelect={(index) => setSelected(index === 0 ? null : index - 1)}
+            me={me}
+            follow={follow}
+            onUserMove={() => setFollow(false)}
           />
         </Suspense>
+        <button
+          type="button"
+          onClick={() => setFollow((f) => !f)}
+          disabled={!me}
+          aria-pressed={follow}
+          aria-label={follow ? 'Parar de seguir minha posição' : 'Seguir minha posição'}
+          title={follow ? 'Parar de seguir' : 'Seguir minha posição'}
+          className={`absolute right-3 top-3 z-1000 flex size-12 items-center justify-center rounded-full shadow-lg ring-1 transition disabled:opacity-50 ${
+            follow ? 'bg-blue-600 text-white ring-blue-600' : 'bg-white text-blue-600 ring-slate-300'
+          }`}
+        >
+          <LocateIcon className="size-6" />
+        </button>
         {!spot && (
           <p className="pointer-events-none absolute inset-x-4 bottom-4 z-1000 rounded-xl bg-white/95 p-3 text-center text-sm text-slate-600 shadow">
             Toque num círculo para ver a parada.

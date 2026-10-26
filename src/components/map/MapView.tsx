@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
+import type { LivePosition } from '../../lib/geolocation';
 import type { LatLng } from '../../types/package';
 
 export interface MapMarker {
@@ -31,20 +32,42 @@ interface MapViewProps {
   onSelect?: (index: number) => void;
   /** Enquadra só na primeira vez: atualizar os marcadores não tira o zoom do lugar */
   keepView?: boolean;
+  /** Onde o celular está agora (ponto azul, com o raio de incerteza) */
+  me?: LivePosition | null;
+  /** Centraliza o mapa em `me` a cada atualização */
+  follow?: boolean;
+  /** O usuário arrastou o mapa (para sair do "seguir") */
+  onUserMove?: () => void;
 }
+
+/** Zoom mínimo ao seguir: dá para ver a rua e as casas */
+const FOLLOW_ZOOM = 17;
 
 /**
  * Mapa com OpenStreetMap (Leaflet). Carregado só quando aberto, para não pesar
  * na tela inicial. Os blocos do mapa vêm do servidor do OpenStreetMap, com a
  * atribuição exigida.
  */
-export default function MapView({ markers, height = 220, path, pathKind = 'straight', onSelect, keepView }: MapViewProps) {
+export default function MapView({
+  markers,
+  height = 220,
+  path,
+  pathKind = 'straight',
+  onSelect,
+  keepView,
+  me,
+  follow,
+  onUserMove,
+}: MapViewProps) {
   const element = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
   const framed = useRef(false);
   const select = useRef(onSelect);
   select.current = onSelect;
+  const userMove = useRef(onUserMove);
+  userMove.current = onUserMove;
+  const meLayer = useRef<{ dot: L.CircleMarker; halo: L.Circle } | null>(null);
 
   useEffect(() => {
     if (!element.current) return;
@@ -55,10 +78,13 @@ export default function MapView({ markers, height = 220, path, pathKind = 'strai
     }).addTo(m);
     map.current = m;
     layer.current = L.layerGroup().addTo(m);
+    // Arrastar com o dedo é o usuário olhando outro lugar: sai do "seguir"
+    m.on('dragstart', () => userMove.current?.());
     return () => {
       m.remove();
       map.current = null;
       layer.current = null;
+      meLayer.current = null;
       framed.current = false;
     };
   }, []);
@@ -100,6 +126,30 @@ export default function MapView({ markers, height = 220, path, pathKind = 'strai
       else m.fitBounds(L.latLngBounds(markers.map((p) => [p.location.lat, p.location.lng])), { padding: [32, 32] });
     }
   }, [markers, path, pathKind, keepView]);
+
+  // A posição muda a cada poucos segundos: move o ponto, sem redesenhar as paradas
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    if (!me) {
+      meLayer.current?.dot.remove();
+      meLayer.current?.halo.remove();
+      meLayer.current = null;
+      return;
+    }
+    const at: [number, number] = [me.location.lat, me.location.lng];
+    if (meLayer.current) {
+      meLayer.current.dot.setLatLng(at);
+      meLayer.current.halo.setLatLng(at).setRadius(me.accuracy);
+    } else {
+      meLayer.current = {
+        halo: L.circle(at, { radius: me.accuracy, color: '#2563eb', weight: 1, opacity: 0.4, fillOpacity: 0.12, interactive: false }).addTo(m),
+        dot: L.circleMarker(at, { radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1, interactive: false }).addTo(m),
+      };
+    }
+    meLayer.current.dot.bringToFront();
+    if (follow) m.setView(at, Math.max(m.getZoom() || 0, FOLLOW_ZOOM), { animate: true });
+  }, [me, follow]);
 
   return <div ref={element} style={{ height }} className="w-full overflow-hidden rounded-xl ring-1 ring-slate-200" />;
 }
