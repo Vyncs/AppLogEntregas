@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { learnFromDelivery } from '../../lib/learning';
 import { googleMapsDirectionsUrl } from '../routing/navigation';
 import { MemoryLearnedStore } from '../storage/learnedRepository';
-import type { Address, DeliveryPackage, PackageGeo } from '../../types/package';
+import type { Address, DeliveryPackage, GeoProblem, PackageGeo } from '../../types/package';
 import { decideLearning, learnedGeo, learnedKey, LearningGeocoder, MAX_ACCURACY_M } from './learnedPlaces';
 import type { Geocoder } from './types';
 
@@ -56,7 +56,7 @@ describe('LearningGeocoder', () => {
 describe('learnFromDelivery', () => {
   it('guarda o local e já corrige as pendentes do mesmo endereço', async () => {
     const store = new MemoryLearnedStore();
-    const setGeo = vi.fn(async () => undefined);
+    const setGeo = vi.fn(async (_id: string, _geo: PackageGeo | null, _problem: GeoProblem | null) => undefined);
     const delivered = pkg('a', '979', 'delivered');
     const packages = [delivered, pkg('b', '979', 'pending', 'casa 2'), pkg('c', '100'), pkg('d', '979', 'problem')];
     const outcome = await learnFromDelivery(delivered, packages, { store, setGeo, fix: async () => ({ location: door, accuracy: 8 }) });
