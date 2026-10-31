@@ -324,4 +324,31 @@ describe('Rota Fácil — cadastro e entrega', () => {
     expect(scrollTo).toHaveBeenLastCalledWith(0, 640);
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
   });
+
+  it('"Entregue" ensina o local do endereço: a outra do mesmo número fica roxa e o próximo cadastro já usa', async () => {
+    // GPS simulado, na porta do número 90 (o mapa de teste põe a casa um pouco ao lado)
+    Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true });
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: (ok: PositionCallback) => ok({ coords: { latitude: -23.5003, longitude: -46.891, accuracy: 8 } } as GeolocationPosition) },
+    });
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: /Fotografar etiqueta/ }));
+    await register('Cliente Rui', '90');
+    await register('Cliente Lia', '90');
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar para as encomendas' }));
+
+    const rui = (await screen.findByText('Cliente Rui')).closest('li') as HTMLElement;
+    const lia = screen.getByText('Cliente Lia').closest('li') as HTMLElement;
+    expect(within(lia).queryByText(/Local confirmado/)).toBeNull();
+    fireEvent.click(within(rui).getByRole('button', { name: 'Entregue' }));
+    expect(await within(lia).findByText('📍 Local confirmado numa entrega')).toBeTruthy();
+
+    // Cadastrar o mesmo endereço de novo: já vem o local aprendido, não o do mapa
+    fireEvent.click(screen.getByRole('button', { name: /Fotografar etiqueta/ }));
+    type('CEP', '06454000');
+    await waitFor(() => expect((screen.getByLabelText('Logradouro') as HTMLInputElement).value).toBe('Rua das Flores'));
+    type('Número', '90');
+    expect(await screen.findByText('Local confirmado numa entrega anterior', {}, { timeout: 3000 })).toBeTruthy();
+  });
 });

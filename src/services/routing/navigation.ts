@@ -87,7 +87,9 @@ export function googleMapsDirectionsUrl(address: Address, geo?: PackageGeo | nul
   const base = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&dir_action=navigate';
   const complete = address.street.trim() && address.number.trim() && address.city.trim();
   const place = geo?.placeId ? `&destination_place_id=${encodeURIComponent(geo.placeId)}` : '';
-  if (complete || !geo) return `${base}&destination=${encodeURIComponent(addressForMaps(address))}${place}`;
+  // Local confirmado numa entrega: a coordenada é a porta certa; o endereço é que caía no número errado
+  const learned = geo?.provider === 'learned';
+  if (!learned && (complete || !geo)) return `${base}&destination=${encodeURIComponent(addressForMaps(address))}${place}`;
   return `${base}&destination=${geo.location.lat.toFixed(6)},${geo.location.lng.toFixed(6)}${place}`;
 }
 

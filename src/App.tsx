@@ -1,17 +1,38 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { CaptureScreen } from './components/CaptureScreen';
 import { EditPackageScreen } from './components/EditPackageScreen';
 import { HomeScreen } from './components/HomeScreen';
 import { DeliveryMode } from './components/route/DeliveryMode';
-import { usePackages } from './hooks/usePackages';
+import { usePackages, type PackagesApi } from './hooks/usePackages';
 import { useRoute } from './hooks/useRoute';
 import { useRememberScroll, useScrollReset } from './hooks/useScrollReset';
+import { currentFix } from './lib/geolocation';
+import { learnFromDelivery } from './lib/learning';
+import { learnedStore } from './lib/services';
 
 type Screen = 'home' | 'capture' | 'deliver';
 
 export default function App() {
-  const packagesApi = usePackages();
-  const route = useRoute(packagesApi);
+  const basePackages = usePackages();
+  const route = useRoute(basePackages);
+  // "Entregue" também ensina onde fica o endereço (o GPS na porta), em segundo plano
+  const packagesApi = useMemo<PackagesApi>(
+    () => ({
+      ...basePackages,
+      setStatus: async (id, status, note) => {
+        await basePackages.setStatus(id, status, note);
+        const pkg = basePackages.packages.find((p) => p.id === id);
+        if (status === 'delivered' && pkg) {
+          void learnFromDelivery(pkg, basePackages.packages, {
+            store: learnedStore,
+            fix: currentFix,
+            setGeo: basePackages.setGeo,
+          }).catch(() => undefined);
+        }
+      },
+    }),
+    [basePackages],
+  );
   const [screen, setScreen] = useState<Screen>('home');
   const [editing, setEditing] = useState<{ id: string; back: Screen } | null>(null);
   /** Parada aberta nas entregas: sobrevive à ida para Editar e volta */

@@ -190,6 +190,11 @@ export function DeliveryMode({ packagesApi, route, at, onAt, onBack, onEdit }: D
         </div>
         <p className="mt-1 text-lg text-slate-700">{pkg.recipientName || 'Sem nome'}</p>
         <p className="text-sm text-slate-500">{placeLine(pkg)}</p>
+        {pkg.geo?.provider === 'learned' && (
+          <p className="mt-2 inline-flex rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-800">
+            📍 Local confirmado numa entrega: o Maps vai direto para a porta
+          </p>
+        )}
         {pkg.notes && <p className="mt-2 rounded-lg bg-slate-50 p-2 text-sm text-slate-700">📝 {pkg.notes}</p>}
         {problemNote(pkg) && (
           <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-900 ring-1 ring-amber-200">

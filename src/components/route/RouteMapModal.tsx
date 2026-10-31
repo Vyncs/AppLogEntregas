@@ -83,7 +83,7 @@ export function RouteMapModal({ plan, stops, byId, onStatus, onOpen, onClose }: 
           label: spot.items.map((item) => `${item.number}. ${item.pkg.recipientName || 'Sem nome'}`).join('\n'),
           number: first.number,
           more: spot.items.length > 1 ? spot.items.length - 1 : undefined,
-          tone: selected === i ? 'selected' : pending ? 'stop' : 'done',
+          tone: selected === i ? 'selected' : !pending ? 'done' : pending.pkg.geo?.provider === 'learned' ? 'learned' : 'stop',
         };
       }),
     ],
