@@ -95,11 +95,24 @@ export function GeoStatus({ lookup, onChoose, cityHint }: GeoStatusProps) {
 
   const { chosen, options, ambiguous } = lookup;
   const precise = chosen.precision === 'number';
+  const learned = chosen.provider === 'learned';
   const others = options.filter((o) => o !== chosen);
 
   return (
-    <div className={`rounded-xl p-3 text-xs ring-1 ${precise ? 'bg-emerald-50 text-emerald-900 ring-emerald-200' : 'bg-amber-50 text-amber-900 ring-amber-200'}`}>
-      {ambiguous ? (
+    <div
+      className={`rounded-xl p-3 text-xs ring-1 ${
+        learned
+          ? 'bg-purple-50 text-purple-900 ring-purple-200'
+          : precise
+            ? 'bg-emerald-50 text-emerald-900 ring-emerald-200'
+            : 'bg-amber-50 text-amber-900 ring-amber-200'
+      }`}
+    >
+      {learned ? (
+        <p>
+          📍 <strong>Local confirmado numa entrega anterior</strong> neste endereço: vale ele, não o mapa.
+        </p>
+      ) : ambiguous ? (
         <p className="font-semibold">Encontramos mais de um lugar para esse endereço. Toque no certo:</p>
       ) : (
         <p>

@@ -11,7 +11,8 @@ export interface MapMarker {
   number?: number;
   /** Outras paradas no mesmo ponto (mostra "+N") */
   more?: number;
-  tone?: 'start' | 'stop' | 'done' | 'selected';
+  /** `learned`: parada com local confirmado numa entrega (roxo) */
+  tone?: 'start' | 'stop' | 'done' | 'selected' | 'learned';
 }
 
 const TONE: Record<NonNullable<MapMarker['tone']>, string> = {
@@ -19,6 +20,7 @@ const TONE: Record<NonNullable<MapMarker['tone']>, string> = {
   stop: 'bg-teal-700 text-white',
   done: 'bg-slate-400 text-white',
   selected: 'bg-orange-500 text-white scale-125',
+  learned: 'bg-purple-600 text-white',
 };
 
 interface MapViewProps {

@@ -57,3 +57,19 @@ export function watchPosition(onPosition: (p: LivePosition) => void, onError: (m
   );
   return () => navigator.geolocation.clearWatch(id);
 }
+
+/** Uma leitura do GPS com a precisão (para decidir se dá para confiar no ponto). */
+export function currentFix(timeoutMs = 10_000): Promise<LivePosition> {
+  return new Promise((resolve, reject) => {
+    if (!window.isSecureContext || !('geolocation' in navigator)) {
+      reject(new Error('Localização indisponível.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ location: { lat: p.coords.latitude, lng: p.coords.longitude }, accuracy: p.coords.accuracy }),
+      () => reject(new Error('Não foi possível obter sua localização agora.')),
+      // Posição recente (a do mapa aberto serve), mas não de minutos atrás
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 15_000 },
+    );
+  });
+}

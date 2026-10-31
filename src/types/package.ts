@@ -48,7 +48,8 @@ export interface LatLng {
 /** Até onde a coordenada é precisa: no número, na rua, no CEP ou só na cidade. */
 export type GeoPrecision = 'number' | 'street' | 'cep' | 'city';
 
-export type GeocoderId = 'google' | 'tomtom' | 'nominatim' | 'map';
+/** `learned`: o GPS na hora de uma entrega anterior nesse endereço */
+export type GeocoderId = 'google' | 'tomtom' | 'nominatim' | 'map' | 'learned';
 
 /** Onde a encomenda fica no mapa. */
 export interface PackageGeo {

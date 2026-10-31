@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { currentPosition } from '../lib/geolocation';
-import { geocoder, matrixProvider } from '../lib/services';
+import { geocoder, learnedStore, matrixProvider } from '../lib/services';
+import { findLearned, learnedGeo } from '../services/geo/learnedPlaces';
 import { decideCandidates, needsGeocode, toPackageGeo } from '../services/geo/candidates';
 import { planRoute, type CachedMatrix, type NamedPoint, type RoutePlan, type RoutePoint } from '../services/routing/planner';
 import { kvGet, kvSet } from '../services/storage/db';
@@ -91,6 +92,16 @@ export function useRoute(packagesApi: PackagesApi) {
       let done = 0;
       for (const p of pending) {
         const street = { street: p.address.street, number: p.address.number, city: p.address.city };
+        // Confirmado numa entrega (hoje ou antes): vale mais que o ponto do mapa
+        if (p.geo?.provider !== 'learned') {
+          const place = await findLearned(learnedStore, p.address).catch(() => undefined);
+          if (place) {
+            const geo = learnedGeo(place);
+            await packagesApi.setGeo(p.id, geo, null);
+            located.push({ id: p.id, location: geo.location, street });
+            continue;
+          }
+        }
         if (p.geo && !needsGeocode(p.geo, geocoder.id)) {
           located.push({ id: p.id, location: p.geo.location, street });
           continue;

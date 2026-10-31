@@ -3,7 +3,9 @@ import { ViaCepService } from '../services/cep/cepService';
 import { GoogleGeocoder } from '../services/geo/googleGeocoder';
 import { NominatimGeocoder } from '../services/geo/nominatimGeocoder';
 import { TomTomGeocoder } from '../services/geo/tomtomGeocoder';
+import { LearningGeocoder } from '../services/geo/learnedPlaces';
 import type { Geocoder } from '../services/geo/types';
+import { KvLearnedStore } from '../services/storage/learnedRepository';
 import { OrsMatrixProvider } from '../services/routing/orsProvider';
 import { OsrmMatrixProvider } from '../services/routing/osrmProvider';
 import { fetchRouteLine } from '../services/routing/routeLine';
@@ -26,11 +28,15 @@ const env = import.meta.env;
  * Quem acha os endereços: Google, se houver chave; senão TomTom (grátis, sem
  * cartão); senão OpenStreetMap (Nominatim, 1 consulta por segundo).
  */
-export const geocoder: Geocoder = env.VITE_GOOGLE_MAPS_API_KEY
+const mapGeocoder: Geocoder = env.VITE_GOOGLE_MAPS_API_KEY
   ? new GoogleGeocoder(env.VITE_GOOGLE_MAPS_API_KEY)
   : env.VITE_TOMTOM_API_KEY
     ? new TomTomGeocoder(env.VITE_TOMTOM_API_KEY)
     : new NominatimGeocoder(undefined, env.MODE === 'test' ? 0 : 1100);
+
+/** Locais confirmados nas entregas: valem antes do mapa (ver `learnedPlaces.ts`). */
+export const learnedStore = new KvLearnedStore();
+export const geocoder: Geocoder = new LearningGeocoder(mapGeocoder, learnedStore);
 
 /** OpenRouteService com chave; sem ela, OSRM (o de demonstração, ou o de VITE_OSRM_URL). */
 export const matrixProvider: MatrixProvider = env.VITE_ORS_API_KEY

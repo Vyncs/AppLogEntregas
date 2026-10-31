@@ -97,6 +97,15 @@ pelo ícone (até a sincronização com o Supabase, na Etapa 3).
   - cada parada da lista tem Entregue, Maps e Editar; a resolvida volta para
     pendente com um toque;
   - avisa quando há encomendas novas fora da rota.
+- **Local aprendido na entrega:**
+  - ao marcar "Entregue", o app guarda o GPS daquele momento como o local certo do
+    endereço (rua, número e cidade), se o GPS estiver preciso (até 50 m) e perto do
+    endereço (até 1,5 km — marcar depois, de casa, não ensina errado);
+  - da próxima vez que o endereço aparecer, vale esse local, não o do mapa; as
+    outras encomendas do mesmo endereço já mudam na hora;
+  - parada com local aprendido fica **roxa** (card e mapa), e o Maps vai pela
+    coordenada, direto para a porta;
+  - fica guardado no aparelho; "APAGAR TUDO" não apaga o que foi aprendido.
 - **Entregas (Etapa 6):**
   - uma parada por vez, com "Abrir no Google Maps" (navegação até a parada),
     Entregue, Problema e Editar;

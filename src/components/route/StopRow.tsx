@@ -40,6 +40,8 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude, sam
   const [askingProblem, setAskingProblem] = useState(false);
   const reason = problemNote(p);
   const resolved = p.status !== 'pending';
+  // Local aprendido numa entrega: roxo, para saber que é o número certo (novo)
+  const learned = p.geo?.provider === 'learned';
   const canNavigate = !resolved && (p.geo || p.address.street);
 
   const act = async (status: PackageStatus, note?: string) => {
@@ -59,7 +61,7 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude, sam
       {/* Cabeçalho: número, endereço e as ações secundárias (editar, retirar) no canto */}
       <div className="flex items-start gap-2.5">
         <span
-          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${resolved || number === undefined ? 'bg-slate-200 text-slate-600' : 'bg-teal-700 text-white'}`}
+          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${resolved || number === undefined ? 'bg-slate-200 text-slate-600' : learned ? 'bg-purple-600 text-white' : 'bg-teal-700 text-white'}`}
           aria-hidden={number === undefined}
         >
           {number ?? '–'}
@@ -96,6 +98,7 @@ export function StopRow({ number, stop, pkg: p, onStatus, onEdit, onExclude, sam
               📦 {sameAddress} encomendas neste endereço
             </p>
           )}
+          {learned && <p className="text-xs font-semibold text-purple-700">📍 Local confirmado numa entrega</p>}
           {!resolved && !p.geo && (
             <p className="text-xs font-medium text-amber-700">
               {p.geoProblem === 'not-found' ? 'Endereço não localizado no mapa — fica fora da rota' : 'Ainda sem localização'}
